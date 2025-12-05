@@ -7,19 +7,35 @@ import me.Evil.soulSMP.commands.TeamChatToggleCommand;
 import me.Evil.soulSMP.listeners.TeamActivityListener;
 import me.Evil.soulSMP.listeners.TeamChatListener;
 import me.Evil.soulSMP.listeners.BannerListener;
+import me.Evil.soulSMP.listeners.TeamVaultListener;
 import me.Evil.soulSMP.team.TeamManager;
+import me.Evil.soulSMP.vault.TeamVaultManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class SoulSMP extends JavaPlugin {
 
     private TeamManager teamManager;
     private TeamChatManager teamChatManager;
+    private TeamVaultManager vaultManager;
+
 
     @Override
     public void onEnable() {
-        // Init managers (TeamManager handles teams.yml internally)
-        this.teamManager = new TeamManager(this);
-        this.teamChatManager = new TeamChatManager();
+
+        // ---------------------------
+        // TEAM MANAGER SETUP
+        // ---------------------------
+        teamManager = new TeamManager(this);
+        teamChatManager = new TeamChatManager();
+        vaultManager = new TeamVaultManager(this, teamManager);
+
+        vaultManager.loadVaults();
+        teamManager.loadTeams();   // IMPORTANT: load BEFORE listeners register
+
+
+        // ---------------------------
+        // REGISTER COMMANDS
+        // ---------------------------
 
         // TEAM COMMAND (/team, alias /t)
         if (getCommand("team") != null) {
@@ -44,10 +60,13 @@ public class SoulSMP extends JavaPlugin {
             getLogger().severe("Command 'tc' not found in plugin.yml!");
         }
 
-        // Event Handlers/Listeners
+        // ---------------------------
+        // REGISTER LISTENERS
+        // ---------------------------
         getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager), this);
         getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        getServer().getPluginManager().registerEvents(new BannerListener(teamManager), this);
+        getServer().getPluginManager().registerEvents(new BannerListener(teamManager, vaultManager), this);
+        getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager), this);
 
         getLogger().info("SoulSMP enabled.");
     }
@@ -57,6 +76,10 @@ public class SoulSMP extends JavaPlugin {
         // Save team data via TeamManager (it handles IO + exceptions)
         if (teamManager != null) {
             teamManager.saveTeams();
+        }
+
+        if (vaultManager != null) {
+            vaultManager.saveVaults();
         }
 
         getLogger().info("SoulSMP disabled.");

@@ -2,8 +2,12 @@ package me.Evil.soulSMP.commands;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -11,8 +15,7 @@ import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class TeamCommand implements CommandExecutor, TabCompleter {
 
@@ -39,7 +42,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        String sub = args[0].toLowerCase();
+        String sub = args[0].toLowerCase(Locale.ROOT);
 
         switch (sub) {
             case "create" -> handleCreate(player, args);
@@ -47,11 +50,18 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             case "leave" -> handleLeave(player);
             case "disband" -> handleDisband(player);
             case "banner" -> handleBanner(player, args);
+            case "border" -> handleBorder(player);
+            case "invite" -> handleInvite(player, args);
+            case "accept" -> handleAccept(player);
             default -> sendHelp(player);
         }
 
         return true;
     }
+
+    // =====================
+    // Main /team help
+    // =====================
 
     private void sendHelp(Player player) {
         player.sendMessage(ChatColor.GOLD + "==== Team Commands ====");
@@ -59,10 +69,24 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/team info " + ChatColor.GRAY + "- Show your team info");
         player.sendMessage(ChatColor.YELLOW + "/team leave " + ChatColor.GRAY + "- Leave your team");
         player.sendMessage(ChatColor.YELLOW + "/team disband " + ChatColor.GRAY + "- Disband your team (owner only)");
+        player.sendMessage(ChatColor.YELLOW + "/team invite <player> " + ChatColor.GRAY + "- Invite a player to your team");
+        player.sendMessage(ChatColor.YELLOW + "/team accept " + ChatColor.GRAY + "- Accept a team invite");
+        player.sendMessage(ChatColor.YELLOW + "/team border " + ChatColor.GRAY + "- Show your team's claim border");
+        player.sendMessage(ChatColor.YELLOW + "/team banner " + ChatColor.GRAY + "- Banner & claim commands (/team banner help)");
+    }
+
+    // Banner-only help
+    private void sendBannerHelp(Player player) {
+        player.sendMessage(ChatColor.GOLD + "==== Team Banner Commands ====");
         player.sendMessage(ChatColor.YELLOW + "/team banner claim " + ChatColor.GRAY + "- Claim the banner design in your hand");
         player.sendMessage(ChatColor.YELLOW + "/team banner preview " + ChatColor.GRAY + "- Get a copy of your team banner");
-        player.sendMessage(ChatColor.YELLOW + "/team banner remove " + ChatColor.GRAY + "- Remove your team’s claimed banner block");
+        player.sendMessage(ChatColor.YELLOW + "/team banner remove " + ChatColor.GRAY + "- Remove your team's placed banner block");
+        player.sendMessage(ChatColor.YELLOW + "/team banner unclaim " + ChatColor.GRAY + "- Drop your banner design and ALL land claims");
     }
+
+    // =====================
+    // Core team commands
+    // =====================
 
     // /team create <name>
     private void handleCreate(Player player, String[] args) {
@@ -155,6 +179,10 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.RED + "You have disbanded the team '" + name + "'.");
     }
 
+    // =====================
+    // Banner subsection
+    // =====================
+
     // /team banner ...
     private void handleBanner(Player player, String[] args) {
         Team team = teamManager.getTeamByPlayer(player);
@@ -163,17 +191,19 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        if (args.length < 2) {
-            player.sendMessage(ChatColor.RED + "Usage: /team banner <claim|preview|remove>");
+        // /team banner  OR  /team banner help
+        if (args.length == 1 || (args.length >= 2 && args[1].equalsIgnoreCase("help"))) {
+            sendBannerHelp(player);
             return;
         }
 
-        String sub = args[1].toLowerCase();
+        String sub = args[1].toLowerCase(Locale.ROOT);
         switch (sub) {
-            case "claim" -> handleBannerClaim(player, team);
+            case "claim"   -> handleBannerClaim(player, team);
             case "preview" -> handleBannerPreview(player, team);
-            case "remove" -> handleBannerRemove(player, team);
-            default -> player.sendMessage(ChatColor.RED + "Usage: /team banner <claim|preview|remove>");
+            case "remove"  -> handleBannerRemove(player, team);
+            case "unclaim" -> handleBannerUnclaim(player, team);
+            default        -> sendBannerHelp(player);
         }
     }
 
@@ -205,6 +235,45 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         team.setBannerDesign(inHand);
         player.sendMessage(ChatColor.GREEN + "Your team has claimed this banner design!");
         player.sendMessage(ChatColor.YELLOW + "Only banners with this exact design will count as your team banner.");
+    }
+
+    // /team banner unclaim
+    private void handleBannerUnclaim(Player player, Team team) {
+        // Only owner can unclaim the banner + claims
+        if (!team.getOwner().equals(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "Only the team owner can unclaim the banner and drop claims.");
+            return;
+        }
+
+        if (!team.hasBannerLocation() && !team.hasClaimedBannerDesign()) {
+            player.sendMessage(ChatColor.RED + "Your team has no banner claimed and no active claims.");
+            return;
+        }
+
+        // 1) Remove the placed banner block if it exists
+        if (team.hasBannerLocation()) {
+            var loc = team.getBannerLocation();
+            var world = loc.getWorld();
+            if (world != null) {
+                var block = world.getBlockAt(loc);
+                // Only remove if it’s actually a banner, to avoid nuking random blocks
+                if (block.getType().name().endsWith("_BANNER") || block.getType().name().endsWith("_WALL_BANNER")) {
+                    block.setType(Material.AIR);
+                }
+            }
+            // Drop all claims by clearing banner location
+            team.setBannerLocation(null);
+        }
+
+        // 2) Remove the banner design so they can pick a new one later
+        if (team.hasClaimedBannerDesign()) {
+            team.clearBannerDesign();
+        }
+
+        player.sendMessage(ChatColor.YELLOW + "Your team's banner and all land claims have been unclaimed.");
+        player.sendMessage(ChatColor.GREEN + "You can claim a new design with "
+                + ChatColor.AQUA + "/team banner claim" + ChatColor.GREEN +
+                " and place a new banner to start claiming again.");
     }
 
     // /team banner preview
@@ -248,6 +317,89 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     }
 
     // =====================
+    // Other team commands
+    // =====================
+
+    // /team border
+    private void handleBorder(Player player) {
+        Team team = teamManager.getTeamByPlayer(player);
+
+        if (team == null) {
+            player.sendMessage(ChatColor.RED + "You are not in a team.");
+            return;
+        }
+
+        if (!team.hasBannerLocation()) {
+            player.sendMessage(ChatColor.RED + "Your team does not have a banner placed.");
+            return;
+        }
+
+        teamManager.showTeamBorder(player);
+    }
+
+    // /team invite <player>
+    private void handleInvite(Player player, String[] args) {
+        Team team = teamManager.getTeamByPlayer(player);
+
+        if (team == null) {
+            player.sendMessage(ChatColor.RED + "You are not in a team.");
+            return;
+        }
+
+        // Only owner can invite
+        if (!team.getOwner().equals(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "Only the team owner can invite players.");
+            return;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "Usage: /team invite <player>");
+            return;
+        }
+
+        Player target = player.getServer().getPlayer(args[1]);
+        if (target == null) {
+            player.sendMessage(ChatColor.RED + "Player not found.");
+            return;
+        }
+
+        if (teamManager.getTeamByPlayer(target) != null) {
+            player.sendMessage(ChatColor.RED + "That player is already in a team.");
+            return;
+        }
+
+        if (teamManager.sendInvite(player, target)) {
+            player.sendMessage(ChatColor.GREEN + "Invite sent to " + target.getName() + "!");
+            target.sendMessage(ChatColor.AQUA + player.getName() + " has invited you to join team "
+                    + ChatColor.GOLD + team.getName());
+            target.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.GREEN + "/team accept" + ChatColor.YELLOW + " to join.");
+        }
+    }
+
+    // /team accept
+    private void handleAccept(Player player) {
+        if (!teamManager.hasPendingInvite(player)) {
+            player.sendMessage(ChatColor.RED + "You do not have any pending team invites.");
+            return;
+        }
+
+        Team team = teamManager.acceptInvite(player);
+        if (team == null) {
+            player.sendMessage(ChatColor.RED + "Your team invite has expired.");
+            return;
+        }
+
+        player.sendMessage(ChatColor.GREEN + "You joined the team " + team.getName() + "!");
+        for (UUID uuid : team.getMembers()) {
+            Player member = player.getServer().getPlayer(uuid);
+            if (member != null) {
+                member.sendMessage(ChatColor.AQUA + player.getName() + ChatColor.GREEN + " has joined the team!");
+            }
+        }
+    }
+
+
+    // =====================
     // Tab completion
     // =====================
 
@@ -259,8 +411,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
         // /team <subcommand>
         if (args.length == 1) {
-            List<String> subs = List.of("create", "info", "leave", "disband", "banner");
-            String current = args[0].toLowerCase();
+            List<String> subs = List.of("create", "info", "leave", "disband", "banner", "border", "invite", "accept");
+            String current = args[0].toLowerCase(Locale.ROOT);
             for (String s : subs) {
                 if (s.startsWith(current)) {
                     completions.add(s);
@@ -269,13 +421,24 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             return completions;
         }
 
-        // /team banner <claim|preview|remove>
+        // /team banner <...>
         if (args.length == 2 && args[0].equalsIgnoreCase("banner")) {
-            List<String> subs = List.of("claim", "preview", "remove");
-            String current = args[1].toLowerCase();
+            List<String> subs = List.of("help", "claim", "preview", "remove", "unclaim");
+            String current = args[1].toLowerCase(Locale.ROOT);
             for (String s : subs) {
                 if (s.startsWith(current)) {
                     completions.add(s);
+                }
+            }
+            return completions;
+        }
+
+        // /team invite <player>
+        if (args.length == 2 && args[0].equalsIgnoreCase("invite")) {
+            String partial = args[1].toLowerCase(Locale.ROOT);
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                if (p.getName().toLowerCase(Locale.ROOT).startsWith(partial)) {
+                    completions.add(p.getName());
                 }
             }
             return completions;

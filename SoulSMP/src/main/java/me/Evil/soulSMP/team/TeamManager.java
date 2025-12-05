@@ -1,10 +1,13 @@
 package me.Evil.soulSMP.team;
 
+import org.bukkit.*;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,9 +30,16 @@ public class TeamManager {
 
     public TeamManager(Plugin plugin) {
         this.plugin = plugin;
-        initStorage();
-        loadTeams();
+
+        File file = new File(plugin.getDataFolder(), "teams.yml");
+        if (!file.exists()) {
+            plugin.saveResource("teams.yml", false);
+        }
+
+        teamsFile = file;
+        teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
     }
+
 
     // ==========================
     // Storage setup
@@ -120,6 +130,66 @@ public class TeamManager {
     // Membership
     // ==========================
 
+    // playerUUID -> invite info
+    private final Map<UUID, TeamInvite> pendingInvites = new HashMap<>();
+
+    public static class TeamInvite {
+        public final Team team;
+        public final long expiresAt;
+
+        public TeamInvite(Team team, long expiresAt) {
+            this.team = team;
+            this.expiresAt = expiresAt;
+        }
+    }
+
+    public boolean sendInvite(Player inviter, Player target) {
+        Team inviterTeam = getTeamByPlayer(inviter);
+        if (inviterTeam == null) return false;
+
+        // Only owner can invite OR allow all members — your choice:
+        // if (!inviterTeam.getOwner().equals(inviter.getUniqueId())) return false;
+
+        UUID targetId = target.getUniqueId();
+
+        // Already in team
+        if (getTeamByPlayer(target) != null) {
+            inviter.sendMessage(ChatColor.RED + "That player is already in a team.");
+            return false;
+        }
+
+        // Overwrite previous invite
+        pendingInvites.put(targetId, new TeamInvite(
+                inviterTeam,
+                System.currentTimeMillis() + 60_000 // expires in 60 seconds
+        ));
+
+        return true;
+    }
+
+    public Team acceptInvite(Player player) {
+        UUID id = player.getUniqueId();
+
+        TeamInvite invite = pendingInvites.get(id);
+        if (invite == null) return null;
+
+        // Expired?
+        if (System.currentTimeMillis() > invite.expiresAt) {
+            pendingInvites.remove(id);
+            return null;
+        }
+
+        Team team = invite.team;
+        pendingInvites.remove(id);
+
+        addPlayerToTeam(team, player);
+        return team;
+    }
+
+    public boolean hasPendingInvite(Player player) {
+        return pendingInvites.containsKey(player.getUniqueId());
+    }
+
     public JoinResult addPlayerToTeam(Team team, Player player) {
         if (team == null || player == null) return JoinResult.ERROR;
 
@@ -186,6 +256,85 @@ public class TeamManager {
     }
 
     // ==========================
+    // Border Visualization
+    // ==========================
+
+    public void showTeamBorder(Player player) {
+        Team team = getTeamByPlayer(player);
+        if (team == null) {
+            player.sendMessage(ChatColor.RED + "You are not in a team.");
+            return;
+        }
+
+        if (!team.hasBannerLocation()) {
+            player.sendMessage(ChatColor.RED + "Your team does not have a banner placed.");
+            return;
+        }
+
+        var center = team.getBannerLocation();
+        var world = center.getWorld();
+        if (world == null) {
+            player.sendMessage(ChatColor.RED + "World for your banner is not loaded.");
+            return;
+        }
+
+        int radiusTiles = Math.max(1, team.getClaimRadius()); // 1 tile = 16x16
+        int halfSize = radiusTiles * 8; // ±8, ±16, ±24, etc.
+
+        int centerX = center.getBlockX();
+        int centerZ = center.getBlockZ();
+
+        int minX = centerX - halfSize;
+        int maxX = centerX + halfSize;
+        int minZ = centerZ - halfSize;
+        int maxZ = centerZ + halfSize;
+
+        player.sendMessage(ChatColor.AQUA + "Showing claim border for 10 seconds...");
+
+        new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (ticks >= 200) { // 10 seconds @ 10 ticks
+                    cancel();
+                    return;
+                }
+
+                highlightClaimBorder(world, minX, maxX, minZ, maxZ, player);
+
+                ticks += 10;
+            }
+        }.runTaskTimer(plugin, 0L, 10L);
+    }
+
+    /**
+     * Draws a 3D rectangular border (walls) around the claimed square.
+     */
+    private void highlightClaimBorder(World world, int minX, int maxX, int minZ, int maxZ, Player player) {
+        int baseY = player.getLocation().getBlockY();
+        int minY = baseY - 10;
+        int maxY = baseY + 20;
+
+        minY = Math.max(minY, world.getMinHeight());
+        maxY = Math.min(maxY, world.getMaxHeight());
+
+        for (int y = minY; y <= maxY; y++) {
+            // Top & bottom edges
+            for (int x = minX; x <= maxX; x++) {
+                world.spawnParticle(Particle.GLOW, x + 0.5, y, minZ + 0.5, 0, 0, 0, 0);
+                world.spawnParticle(Particle.GLOW, x + 0.5, y, maxZ + 0.5, 0, 0, 0, 0);
+            }
+            // Left & right edges
+            for (int z = minZ; z <= maxZ; z++) {
+                world.spawnParticle(Particle.GLOW, minX + 0.5, y, z + 0.5, 0, 0, 0, 0);
+                world.spawnParticle(Particle.GLOW, maxX + 0.5, y, z + 0.5, 0, 0, 0, 0);
+            }
+        }
+    }
+
+
+    // ==========================
     // Persistence
     // ==========================
 
@@ -226,23 +375,20 @@ public class TeamManager {
             initStorage();
         }
 
-        Object sectionObj = teamsConfig.get("teams");
-        if (!(sectionObj instanceof Map<?, ?> map)) {
+        // "teams" is a ConfigurationSection, not a Map
+        ConfigurationSection teamsSection = teamsConfig.getConfigurationSection("teams");
+        if (teamsSection == null) {
             return; // no teams yet
         }
 
-        for (Map.Entry<?, ?> entry : map.entrySet()) {
-            if (!(entry.getKey() instanceof String key)) continue;
-            if (!(entry.getValue() instanceof Map<?, ?> teamMapRaw)) continue;
+        for (String key : teamsSection.getKeys(false)) {
+            ConfigurationSection teamSection = teamsSection.getConfigurationSection(key);
+            if (teamSection == null) continue;
 
-            Map<String, Object> teamMap = new LinkedHashMap<>();
-            for (Map.Entry<?, ?> inner : teamMapRaw.entrySet()) {
-                if (inner.getKey() instanceof String s) {
-                    teamMap.put(s, inner.getValue());
-                }
-            }
+            Team team = Team.deserialize(teamSection);  // ← new overload
 
-            Team team = Team.deserialize(key, teamMap);
+            if (team == null) continue;
+
             String nameKey = team.getName().toLowerCase(Locale.ROOT);
 
             teamsByName.put(nameKey, team);
@@ -250,5 +396,6 @@ public class TeamManager {
                 teamsByPlayer.put(uuid, team);
             }
         }
+
     }
 }

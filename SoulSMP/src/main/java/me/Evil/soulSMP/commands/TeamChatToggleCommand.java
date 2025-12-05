@@ -35,10 +35,10 @@ public class TeamChatToggleCommand implements CommandExecutor {
 
         boolean enabled = teamChatManager.toggleTeamChat(player.getUniqueId());
         if (enabled) {
-            player.sendMessage(ChatColor.AQUA + "[" + team.getName() + " Team] " +
+            player.sendMessage(ChatColor.AQUA + "[" + team.getName() + "] " +
                     ChatColor.GREEN + "Team chat enabled. Your messages will go to your team.");
         } else {
-            player.sendMessage(ChatColor.AQUA + "[" + team.getName() + " Team] " +
+            player.sendMessage(ChatColor.AQUA + "[" + team.getName() + "] " +
                     ChatColor.YELLOW + "Team chat disabled. Your messages are global again.");
         }
 

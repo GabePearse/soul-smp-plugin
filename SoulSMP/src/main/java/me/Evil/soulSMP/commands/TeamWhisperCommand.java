@@ -50,7 +50,7 @@ public class TeamWhisperCommand implements CommandExecutor {
         }
 
         // Prefix with team name and player name
-        String formatted = ChatColor.AQUA + "[" + team.getName() + " Team] "
+        String formatted = ChatColor.AQUA + "[" + team.getName() + "] "
                 + ChatColor.WHITE + player.getName() + ": "
                 + ChatColor.GRAY + message;
 

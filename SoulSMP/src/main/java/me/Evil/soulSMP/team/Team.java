@@ -8,6 +8,7 @@ import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.block.banner.Pattern;
 import org.bukkit.block.banner.PatternType;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BannerMeta;
 
@@ -40,8 +41,8 @@ public class Team {
         this.members.add(owner);
 
         this.claimRadius = 1;
-        this.lives = 5;
-        this.vaultSize = 9;
+        this.lives = 10;
+        this.vaultSize = 1;
     }
 
     // --- Identity ---
@@ -121,6 +122,12 @@ public class Team {
         this.bannerPatterns = new ArrayList<>(meta.getPatterns());
     }
 
+    public void clearBannerDesign() {
+        this.bannerMaterial = null;
+        this.bannerPatterns.clear();
+    }
+
+
     /**
      * Check if the given banner item matches this team's claimed design.
      */
@@ -187,7 +194,6 @@ public class Team {
     }
 
     // --- Serialization helpers for persistence ---
-
     public Map<String, Object> serialize() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("name", name);
@@ -236,74 +242,83 @@ public class Team {
     }
 
     @SuppressWarnings("unchecked")
-    public static Team deserialize(String name, Map<String, Object> map) {
-        String ownerStr = (String) map.get("owner");
-        UUID owner = UUID.fromString(ownerStr);
+    public static Team deserialize(ConfigurationSection sec) {
+        String key = sec.getName();
+
+        // --- Basic fields ---
+        String name = sec.getString("name", key);
+
+        String ownerStr = sec.getString("owner");
+        UUID owner = ownerStr != null ? UUID.fromString(ownerStr) : null;
+
         Team team = new Team(name, owner);
 
-        Object membersObj = map.get("members");
-        if (membersObj instanceof List<?> list) {
-            team.members.clear();
-            for (Object o : list) {
-                if (o instanceof String s) {
-                    team.members.add(UUID.fromString(s));
+        // --- Members ---
+        List<String> memberStrings = sec.getStringList("members");
+        if (memberStrings != null) {
+            for (String s : memberStrings) {
+                if (s == null || s.isEmpty()) continue;
+                team.members.add(UUID.fromString(s));
+            }
+        }
+        if (owner != null) {
+            team.members.add(owner);
+        }
+
+        // --- Numeric fields ---
+        team.lives       = sec.getInt("lives", 5);
+        team.claimRadius = sec.getInt("claimRadius", 1);
+        team.vaultSize   = sec.getInt("vaultSize", 9);
+
+        // --- Banner location ---
+        ConfigurationSection locSec = sec.getConfigurationSection("bannerLocation");
+        if (locSec != null) {
+            String worldName = locSec.getString("world");
+            World world = worldName != null ? Bukkit.getWorld(worldName) : null;
+
+            if (world != null) {
+                double x = locSec.getDouble("x");
+                double y = locSec.getDouble("y");
+                double z = locSec.getDouble("z");
+
+                team.bannerLocation = new Location(world, x, y, z);
+            } else if (worldName != null) {
+                Bukkit.getLogger().warning("[SoulSMP] World '" + worldName
+                        + "' not found when loading bannerLocation for team " + team.name);
+            }
+        }
+
+        // --- Banner design ---
+        ConfigurationSection designSec = sec.getConfigurationSection("bannerDesign");
+        if (designSec != null) {
+            String matName = designSec.getString("material");
+            if (matName != null) {
+                team.bannerMaterial = Material.matchMaterial(matName);
+            }
+
+            List<Map<?, ?>> patternMaps = designSec.getMapList("patterns");
+            List<Pattern> patterns = new ArrayList<>();
+
+            for (Map<?, ?> pMap : patternMaps) {
+                Object colorObj = pMap.get("color");
+                Object typeObj  = pMap.get("type");
+
+                if (!(colorObj instanceof String colorName)) continue;
+                if (!(typeObj instanceof String typeName)) continue;
+
+                try {
+                    org.bukkit.DyeColor color = org.bukkit.DyeColor.valueOf(colorName);
+                    NamespacedKey keyNs = NamespacedKey.fromString(typeName);
+                    PatternType patternType = keyNs != null ? Registry.BANNER_PATTERN.get(keyNs) : null;
+
+                    if (patternType != null) {
+                        patterns.add(new Pattern(color, patternType));
+                    }
+                } catch (Exception ignored) {
                 }
             }
-        }
 
-        if (map.containsKey("lives")) {
-            team.lives = (int) map.get("lives");
-        }
-        if (map.containsKey("claimRadius")) {
-            team.claimRadius = (int) map.get("claimRadius");
-        }
-        if (map.containsKey("vaultSize")) {
-            team.vaultSize = (int) map.get("vaultSize");
-        }
-
-        if (map.containsKey("bannerLocation")) {
-            Object locObj = map.get("bannerLocation");
-            if (locObj instanceof Map<?, ?> locMap) {
-                try {
-                    String worldName = (String) locMap.get("world");
-                    World world = Bukkit.getWorld(worldName);
-                    double x = ((Number) locMap.get("x")).doubleValue();
-                    double y = ((Number) locMap.get("y")).doubleValue();
-                    double z = ((Number) locMap.get("z")).doubleValue();
-                    if (world != null) {
-                        team.bannerLocation = new Location(world, x, y, z);
-                    }
-                } catch (Exception ignored) {}
-            }
-        }
-
-        if (map.containsKey("bannerDesign")) {
-            Object designObj = map.get("bannerDesign");
-            if (designObj instanceof Map<?, ?> dMap) {
-                try {
-                    String matName = (String) dMap.get("material");
-                    team.bannerMaterial = Material.valueOf(matName);
-
-                    Object patternsObj = dMap.get("patterns");
-                    if (patternsObj instanceof List<?> pList) {
-                        List<Pattern> patterns = new ArrayList<>();
-                        for (Object po : pList) {
-                            if (!(po instanceof Map<?, ?> pm)) continue;
-                            String colorStr = (String) pm.get("color");
-                            String typeKeyStr = (String) pm.get("type");
-
-                            org.bukkit.DyeColor color = org.bukkit.DyeColor.valueOf(colorStr);
-                            NamespacedKey ns = typeKeyStr != null ? NamespacedKey.fromString(typeKeyStr) : null;
-                            PatternType type = ns != null ? Registry.BANNER_PATTERN.get(ns) : null;
-
-                            if (type != null) {
-                                patterns.add(new Pattern(color, type));
-                            }
-                        }
-                        team.bannerPatterns = patterns;
-                    }
-                } catch (Exception ignored) {}
-            }
+            team.bannerPatterns = patterns;
         }
 
         return team;
