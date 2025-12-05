@@ -43,7 +43,7 @@ public class TeamChatListener implements Listener {
 
         String message = event.getMessage();
 
-        String formatted = ChatColor.AQUA + "[" + team.getName() + " Team] "
+        String formatted = ChatColor.AQUA + "[" + team.getName() + "] "
                 + ChatColor.WHITE + player.getName() + ": "
                 + ChatColor.GRAY + message;
 

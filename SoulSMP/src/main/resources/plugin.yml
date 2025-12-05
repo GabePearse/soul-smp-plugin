@@ -8,7 +8,7 @@ description: Team-based SMP with banner claims and Soul Token currency.
 commands:
   team:
     description: Team management command.
-    usage: /team <create|info|leave|disband|banner>
+    usage: /team <create|info|leave|disband|banner|borders|invite>
     aliases: [t]
   tw:
     description: Send a message to your team.
@@ -17,4 +17,4 @@ commands:
   tc:
     description: Toggle team chat mode on or off.
     usage: /tc
-    aliases: [ tchat, tctoggle ]
+    aliases: [tchat, tctoggle, teamchat]
