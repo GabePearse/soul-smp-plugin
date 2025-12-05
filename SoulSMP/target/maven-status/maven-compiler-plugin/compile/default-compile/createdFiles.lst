@@ -5,6 +5,7 @@ me\Evil\soulSMP\team\TeamManager$JoinResult.class
 me\Evil\soulSMP\team\TeamManager$TeamInvite.class
 me\Evil\soulSMP\commands\TeamChatToggleCommand.class
 me\Evil\soulSMP\listeners\TeamActivityListener.class
+me\Evil\soulSMP\util\TeamUtils.class
 me\Evil\soulSMP\SoulSMP.class
 me\Evil\soulSMP\team\TeamManager$1.class
 me\Evil\soulSMP\vault\TeamVaultManager.class

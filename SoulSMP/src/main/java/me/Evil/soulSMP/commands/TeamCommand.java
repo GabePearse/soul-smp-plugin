@@ -5,9 +5,6 @@ import me.Evil.soulSMP.team.TeamManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.Location;
-import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -49,6 +46,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             case "info" -> handleInfo(player);
             case "leave" -> handleLeave(player);
             case "disband" -> handleDisband(player);
+            case "transfer" -> handleTransfer(player, args);
             case "banner" -> handleBanner(player, args);
             case "border" -> handleBorder(player);
             case "invite" -> handleInvite(player, args);
@@ -69,6 +67,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/team info " + ChatColor.GRAY + "- Show your team info");
         player.sendMessage(ChatColor.YELLOW + "/team leave " + ChatColor.GRAY + "- Leave your team");
         player.sendMessage(ChatColor.YELLOW + "/team disband " + ChatColor.GRAY + "- Disband your team (owner only)");
+        player.sendMessage(ChatColor.YELLOW + "/team transfer <player> " + ChatColor.GRAY + "- Transfer team ownership");
         player.sendMessage(ChatColor.YELLOW + "/team invite <player> " + ChatColor.GRAY + "- Invite a player to your team");
         player.sendMessage(ChatColor.YELLOW + "/team accept " + ChatColor.GRAY + "- Accept a team invite");
         player.sendMessage(ChatColor.YELLOW + "/team border " + ChatColor.GRAY + "- Show your team's claim border");
@@ -177,6 +176,51 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         String name = team.getName();
         teamManager.disbandTeam(team);
         player.sendMessage(ChatColor.RED + "You have disbanded the team '" + name + "'.");
+    }
+
+    // /team transfer <player>
+    private void handleTransfer(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(ChatColor.RED + "Usage: /team transfer <player>");
+            return;
+        }
+
+        Team team = teamManager.getTeamByPlayer(player);
+        if (team == null) {
+            player.sendMessage(ChatColor.RED + "You are not in a team.");
+            return;
+        }
+
+        // Only owner can transfer
+        if (!team.getOwner().equals(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "Only the team owner can transfer ownership.");
+            return;
+        }
+
+        String targetName = args[1];
+        Player target = Bukkit.getPlayerExact(targetName);
+        if (target == null) {
+            player.sendMessage(ChatColor.RED + "Could not find online player '" + targetName + "'.");
+            return;
+        }
+
+        // Target must be in the same team
+        Team targetTeam = teamManager.getTeamByPlayer(target);
+        if (targetTeam == null || !targetTeam.equals(team)) {
+            player.sendMessage(ChatColor.RED + target.getName() + " is not in your team.");
+            return;
+        }
+
+        // Transfer & save
+        team.setOwner(target.getUniqueId());
+        teamManager.saveTeam(team);
+
+        player.sendMessage(ChatColor.GREEN + "You transferred ownership of team "
+                + ChatColor.AQUA + team.getName()
+                + ChatColor.GREEN + " to " + ChatColor.YELLOW + target.getName() + ChatColor.GREEN + ".");
+
+        target.sendMessage(ChatColor.GREEN + "You are now the owner of team "
+                + ChatColor.AQUA + team.getName() + ChatColor.GREEN + ".");
     }
 
     // =====================

@@ -35,6 +35,7 @@ import org.bukkit.inventory.ItemStack;
 public class BannerListener implements Listener {
 
     private static final int MIN_BANNER_CHUNK_SEPARATION = 2;
+
     private final TeamManager teamManager;
     private final TeamVaultManager vaultManager;
 
