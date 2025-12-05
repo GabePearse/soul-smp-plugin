@@ -10,6 +10,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -43,7 +44,6 @@ public class TeamVaultListener implements Listener {
 
         // If click is not in the vault itself, we don't care (except maybe for drags)
         if (!inTop) {
-            // You can still add any rules for bottom-inventory if you want
             return;
         }
 
@@ -59,22 +59,16 @@ public class TeamVaultListener implements Listener {
     }
 
 
-    @EventHandler(ignoreCancelled = true)
-    public void onInventoryDrag(InventoryDragEvent event) {
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        Inventory inv = event.getInventory();
 
-        Inventory top = event.getView().getTopInventory();
-        if (!(top.getHolder() instanceof TeamVaultHolder holder)) return;
+        if (!(inv.getHolder() instanceof TeamVaultHolder holder)) return;
 
         Team team = holder.getTeam();
-        int topSize = top.getSize();
+        if (team == null) return;
 
-        // 🔒 Check every raw slot involved in the drag
-        for (int slot : event.getRawSlots()) {
-            if (slot < topSize && vaultManager.isSlotLocked(team, slot)) {
-                event.setCancelled(true);
-                return;
-            }
-        }
+        // 💾 Save this single team vault to YAML whenever it’s closed
+        vaultManager.saveVault(team);
     }
-
 }

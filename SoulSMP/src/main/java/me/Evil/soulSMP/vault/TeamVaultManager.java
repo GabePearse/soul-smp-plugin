@@ -153,20 +153,6 @@ public class TeamVaultManager {
         player.openInventory(inv);
     }
 
-    /**
-     * Only the first team.getVaultSize() slots are usable.
-     */
-    public boolean isSlotLocked(Team team, int slot) {
-        if (team == null) return true;
-        if (slot < 0 || slot >= VAULT_INVENTORY_SIZE) return true;
-
-        int allowed = team.getVaultSize();
-        if (allowed < 0) allowed = 0;
-        if (allowed > VAULT_INVENTORY_SIZE) allowed = VAULT_INVENTORY_SIZE;
-
-        return slot >= allowed;
-    }
-
     // ==========================
     // Persistence
     // ==========================
@@ -202,6 +188,28 @@ public class TeamVaultManager {
 
         plugin.getLogger().info("Loaded " + vaults.size() + " team vault(s).");
     }
+
+    public void saveVault(Team team) {
+        if (team == null) return;
+
+        if (vaultConfig == null) {
+            initFile();
+        }
+
+        Inventory inv = vaults.get(team);
+        if (inv == null) return;
+
+        String key = "vaults." + team.getName();
+        String base64 = InventoryUtils.toBase64(inv);
+        vaultConfig.set(key, base64);
+
+        try {
+            vaultConfig.save(vaultFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save vaults.yml for team " + team.getName() + ": " + e.getMessage());
+        }
+    }
+
 
     public void saveVaults() {
         if (vaultConfig == null) {

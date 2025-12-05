@@ -82,8 +82,12 @@ public class TeamManager {
         Team team = new Team(name, owner.getUniqueId());
         teamsByName.put(key, team);
         teamsByPlayer.put(owner.getUniqueId(), team);
+
+        saveTeam(team); // 💾 persist immediately
+
         return team;
     }
+
 
     /**
      * Disbands the given team, removing all references.
@@ -97,7 +101,20 @@ public class TeamManager {
         for (UUID uuid : team.getMembers()) {
             teamsByPlayer.remove(uuid);
         }
+
+        // 💾 remove from config and save
+        if (teamsConfig == null) {
+            initStorage();
+        }
+        String path = "teams." + key;
+        teamsConfig.set(path, null);
+        try {
+            teamsConfig.save(teamsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save teams.yml while disbanding team " + team.getName() + ": " + e.getMessage());
+        }
     }
+
 
     // ==========================
     // Lookups
@@ -209,8 +226,12 @@ public class TeamManager {
         }
 
         teamsByPlayer.put(uuid, team);
+
+        saveTeam(team);
+
         return JoinResult.SUCCESS;
     }
+
 
     public Team removePlayerFromTeam(Player player) {
         if (player == null) return null;
@@ -223,11 +244,21 @@ public class TeamManager {
 
         // If no members left, disband
         if (team.getMembers().isEmpty()) {
-            disbandTeam(team);
+            disbandTeam(team); // disbandTeam already updates config
+        } else {
+            saveTeam(team); // 💾 member list changed
         }
 
         return team;
     }
+
+    public void transferOwner(Team team, UUID newOwner) {
+        if (team == null || newOwner == null) return;
+
+        team.setOwner(newOwner);
+        saveTeam(team);
+    }
+
 
     public enum JoinResult {
         SUCCESS,
@@ -362,6 +393,31 @@ public class TeamManager {
             plugin.getLogger().severe("Could not save teams.yml: " + e.getMessage());
         }
     }
+
+    /**
+     * Saves a single team to teams.yml using Team.serialize().
+     */
+    public void saveTeam(Team team) {
+        if (team == null) return;
+
+        if (teamsConfig == null) {
+            initStorage();
+        }
+
+        String key = "teams." + team.getName().toLowerCase(Locale.ROOT);
+
+        // Overwrite this team's section
+        teamsConfig.set(key, null);
+        teamsConfig.createSection(key, team.serialize());
+
+        try {
+            plugin.getLogger().info("Saved team " + team.getName() + " to teams.yml.");
+            teamsConfig.save(teamsFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save teams.yml for team " + team.getName() + ": " + e.getMessage());
+        }
+    }
+
 
     /**
      * Loads all teams from teams.yml using Team.deserialize().
