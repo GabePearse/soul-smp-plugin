@@ -4,6 +4,7 @@ import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -28,9 +29,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
-
-
 import org.bukkit.inventory.ItemStack;
+
 
 public class BannerListener implements Listener {
 
@@ -87,15 +87,15 @@ public class BannerListener implements Listener {
             return;
         }
 
-    // It DOES match their design.
-    // If the team already has a banner location, don't override it.
+        // It DOES match their design.
+        // If the team already has a banner location, don't override it.
         if (playerTeam.hasBannerLocation()) {
             player.sendMessage(ChatColor.YELLOW + "Your team already has a claimed banner location. Use /team banner remove first.");
             return;
         }
 
-    // Before claiming, make sure this new claim would NOT be too close or overlap
-    // another team's claim.
+        // Before claiming, make sure this new claim would NOT be too close or overlap
+        // another team's claim.
         if (wouldOverlapOrBeTooClose(block.getLocation(), playerTeam)) {
             player.sendMessage(ChatColor.RED + "You cannot place your team banner here. "
                     + "Your claim would be too close to another team's claim. Move farther away.");
@@ -103,7 +103,7 @@ public class BannerListener implements Listener {
             return;
         }
 
-    // Set this placement as their official team banner location.
+        // Set this placement as their official team banner location.
         playerTeam.setBannerLocation(block.getLocation());
         player.sendMessage(ChatColor.GREEN + "This banner is now your team's claimed banner location!");
         player.sendMessage(ChatColor.YELLOW + "It cannot be broken or destroyed. Use /team banner remove (owner only) to remove it.");
@@ -112,12 +112,13 @@ public class BannerListener implements Listener {
     // =========================================================
     // BLOCK BREAK – indestructible banner + claim protection
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
         Player player = event.getPlayer();
 
         // 1) Protect the banner block AND its support block absolutely
+        // Banner block or its support is protected
         if (isProtectedBannerOrSupport(block)) {
             Team owningTeam = getTeamByBannerBlock(
                     block.getType().name().endsWith("_BANNER")
@@ -127,6 +128,7 @@ public class BannerListener implements Listener {
 
             event.setCancelled(true);
 
+            // Always send a feedback message when a banner (or its support) is broken.
             if (owningTeam != null) {
                 if (owningTeam.isMember(player.getUniqueId())) {
                     if (owningTeam.getOwner().equals(player.getUniqueId())) {
@@ -138,10 +140,14 @@ public class BannerListener implements Listener {
                 } else {
                     player.sendMessage(ChatColor.RED + "You cannot break another team's banner or its base.");
                 }
+            } else {
+                // Fallback: we found a protected banner/support block but couldn't resolve a team.
+                // Still inform the player that this block is protected.
+                player.sendMessage(ChatColor.RED + "You cannot break this banner or its base.");
             }
-
             return;
         }
+
 
         // 2) Generic claim protection in chunks for all other blocks
         if (isProtectedClaimArea(block, player)) {
@@ -300,12 +306,11 @@ public class BannerListener implements Listener {
             }
         }
 
-        // 2) Generic claim interaction protection for other blocks
         if (isEnemyInClaim(block.getLocation(), player)) {
-            event.setCancelled(true);
-
-            // Optional: only send a message for right-clicks (to avoid spam when mining)
-            if (action == Action.RIGHT_CLICK_BLOCK) {
+            // Cancel right‑click interactions only; left‑clicks should reach
+            // BlockBreakEvent where claim protection applies.
+            if (action == Action.RIGHT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR) {
+                event.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "You cannot interact with blocks inside another team's claim.");
             }
         }

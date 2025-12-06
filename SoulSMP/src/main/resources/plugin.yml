@@ -18,3 +18,8 @@ commands:
     description: Toggle team chat mode on or off.
     usage: /tc
     aliases: [tchat, tctoggle, teamchat]
+  token:
+    description: Admin command for managing Soul Tokens
+    usage: /token give <player> <amount>
+    permission: soulsmp.admin
+    aliases: [st, stoken, soultoken]

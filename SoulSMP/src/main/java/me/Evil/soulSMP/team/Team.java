@@ -21,6 +21,7 @@ public class Team {
     // Identity & members
     private final String name;
     private final Set<UUID> members = new HashSet<>();
+    private final Map<String, Integer> beaconEffects = new HashMap<>();
     private UUID owner;
 
     // Claim: banner location + radius
@@ -80,6 +81,15 @@ public class Team {
 
     public boolean isFull() {
         return members.size() >= MAX_MEMBERS;
+    }
+
+    // --- Beacon effects ---
+    public int getEffectLevel(String id) {
+        return beaconEffects.getOrDefault(id, 0);
+    }
+
+    public void setEffectLevel(String id, int level) {
+        beaconEffects.put(id, level);
     }
 
     // --- Claim location ---
@@ -204,7 +214,7 @@ public class Team {
             memberStrings.add(uuid.toString());
         }
         map.put("members", memberStrings);
-
+        map.put("effects", beaconEffects);
         map.put("lives", lives);
         map.put("claimRadius", claimRadius);
         map.put("vaultSize", vaultSize);
@@ -269,6 +279,16 @@ public class Team {
         team.lives       = sec.getInt("lives", 5);
         team.claimRadius = sec.getInt("claimRadius", 1);
         team.vaultSize   = sec.getInt("vaultSize", 9);
+
+//        // --- Beacon effects ---
+//        ConfigurationSection effSec = sec.getConfigurationSection("effects");
+//        if (effSec != null) {
+//            for (String effKey : effSec.getKeys(false)) {
+//                int lvl = effSec.getInt(effKey, 0);
+//                team.beaconEffects.put(effKey, lvl);
+//            }
+//        }
+
 
         // --- Banner location ---
         ConfigurationSection locSec = sec.getConfigurationSection("bannerLocation");

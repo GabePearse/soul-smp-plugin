@@ -83,6 +83,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/team banner unclaim " + ChatColor.GRAY + "- Drop your banner design and ALL land claims");
     }
 
+
     // =====================
     // Core team commands
     // =====================
@@ -360,6 +361,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.GREEN + "You can place a new matching banner to set a new banner location.");
     }
 
+
     // =====================
     // Other team commands
     // =====================
@@ -441,6 +443,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             }
         }
     }
+
 
 
     // =====================
