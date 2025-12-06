@@ -36,11 +36,15 @@ public class TeamVaultManager {
     // Template for locked slots (cloned per slot)
     private final ItemStack lockedPaneTemplate;
 
+    // Template for the vault shop icon (last slot)
+    private final ItemStack shopIconTemplate;
+
     public TeamVaultManager(Plugin plugin, TeamManager teamManager) {
         this.plugin = plugin;
         this.teamManager = teamManager;
         initFile();
         this.lockedPaneTemplate = createLockedPaneTemplate();
+        this.shopIconTemplate = createShopIconTemplate();
     }
 
     private void initFile() {
@@ -75,10 +79,33 @@ public class TeamVaultManager {
         return lockedPaneTemplate.clone();
     }
 
+    private ItemStack createShopIconTemplate() {
+        ItemStack item = new ItemStack(Material.NETHER_STAR);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(ChatColor.GOLD + "Vault & Banner Shop");
+            meta.setLore(java.util.List.of(
+                    ChatColor.AQUA + "Click to open the upgrade shop.",
+                    ChatColor.GRAY + "Spend Soul Tokens on:",
+                    ChatColor.GRAY + "- Claim radius",
+                    ChatColor.GRAY + "- Banner perks",
+                    ChatColor.GRAY + "- Team progression"
+            ));
+            meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS);
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack createShopIcon() {
+        return shopIconTemplate.clone();
+    }
+
     /**
      * Ensures that:
      * - Slots [0, vaultSize) are normal (no locked panes forced in them)
-     * - Slots [vaultSize, VAULT_INVENTORY_SIZE) are filled with locked panes
+     * - Slots [vaultSize, VAULT_INVENTORY_SIZE-1) are filled with locked panes
+     * - The very last slot (index 26) is always the shop icon
      */
     public void refreshVaultLayout(Team team) {
         Inventory inv = vaults.get(team);
@@ -89,7 +116,16 @@ public class TeamVaultManager {
         if (allowed < 0) allowed = 0;
         if (allowed > VAULT_INVENTORY_SIZE) allowed = VAULT_INVENTORY_SIZE;
 
+        int lastIndex = VAULT_INVENTORY_SIZE - 1; // 26
+
         for (int slot = 0; slot < size; slot++) {
+
+            // Reserve the last slot for the shop icon
+            if (slot == lastIndex) {
+                inv.setItem(slot, createShopIcon());
+                continue;
+            }
+
             if (slot < allowed) {
                 // Unlocked region: if we previously had a locked pane here, clear it
                 ItemStack current = inv.getItem(slot);
@@ -119,6 +155,24 @@ public class TeamVaultManager {
     }
 
     /**
+     * Only the first team.getVaultSize() slots are usable for storage.
+     * The last slot (index 26) is always treated as locked (shop icon).
+     */
+    public boolean isSlotLocked(Team team, int slot) {
+        if (team == null) return true;
+        if (slot < 0 || slot >= VAULT_INVENTORY_SIZE) return true;
+
+        int lastIndex = VAULT_INVENTORY_SIZE - 1;
+        if (slot == lastIndex) return true; // shop slot is never storage
+
+        int allowed = team.getVaultSize();
+        if (allowed < 0) allowed = 0;
+        if (allowed > VAULT_INVENTORY_SIZE) allowed = VAULT_INVENTORY_SIZE;
+
+        return slot >= allowed;
+    }
+
+    /**
      * Gets or creates the vault inventory for a team.
      */
     public Inventory getVault(Team team) {
@@ -138,7 +192,7 @@ public class TeamVaultManager {
             vaults.put(team, inv);
         }
 
-        // Ensure locked panes are in correct slots
+        // Ensure locked panes + shop icon are in correct slots
         refreshVaultLayout(team);
 
         return inv;
@@ -178,7 +232,7 @@ public class TeamVaultManager {
                 );
                 vaults.put(team, inv);
 
-                // Ensure locked panes in the right slots after loading
+                // Ensure locked panes & shop icon in the right slots after loading
                 refreshVaultLayout(team);
 
             } catch (IllegalStateException e) {
@@ -209,7 +263,6 @@ public class TeamVaultManager {
             plugin.getLogger().severe("Could not save vaults.yml for team " + team.getName() + ": " + e.getMessage());
         }
     }
-
 
     public void saveVaults() {
         if (vaultConfig == null) {
