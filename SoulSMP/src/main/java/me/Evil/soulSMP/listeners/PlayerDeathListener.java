@@ -57,18 +57,17 @@ public class PlayerDeathListener implements Listener {
             // Broadcast banner coordinates if we have a banner location
             Location bannerLoc = team.getBannerLocation();
             if (bannerLoc != null && bannerLoc.getWorld() != null) {
-                String msg = ChatColor.DARK_RED + "❗ " + ChatColor.RED + "A team has shattered."
-                        + ChatColor.GRAY + " The name " + ChatColor.DARK_RED + team.getName()
-                        + ChatColor.GRAY + " fades into dust."
+                String msg = ChatColor.DARK_RED + "A team has shattered."
+                        + ChatColor.GRAY + " The team " + ChatColor.DARK_RED + team.getName()
+                        + ChatColor.GRAY + " has been turned to dust."
                         + ChatColor.RED + " Their banner now lies vulnerable at: "
-                        + ChatColor.GOLD + bannerLoc.getWorld().getName() + " "
                         + bannerLoc.getBlockX() + ", " + bannerLoc.getBlockY() + ", " + bannerLoc.getBlockZ()
                         + ChatColor.DARK_RED + ".";
 
                 Bukkit.broadcastMessage(msg);
             } else {
                 // Fallback if somehow no banner location is set
-                String msg = ChatColor.DARK_RED + "❗ " + ChatColor.RED + "A team has shattered." + ChatColor.RED + team.getName() + ChatColor.GRAY + " has run out of lives!";
+                String msg = ChatColor.DARK_RED + "A team has shattered." + ChatColor.RED + team.getName() + ChatColor.GRAY + " has run out of lives!";
                 Bukkit.broadcastMessage(msg);
             }
         }

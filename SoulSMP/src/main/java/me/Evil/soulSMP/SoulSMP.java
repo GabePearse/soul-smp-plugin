@@ -9,8 +9,10 @@ import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
+import me.Evil.soulSMP.upgrades.BeaconEffectManager;
 import me.Evil.soulSMP.upgrades.BeaconEffectSettings;
 import me.Evil.soulSMP.vault.TeamVaultManager;
+import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class SoulSMP extends JavaPlugin {
@@ -21,6 +23,14 @@ public class SoulSMP extends JavaPlugin {
     private SoulTokenManager tokenManager;
     private BannerShopSettings bannerShopSettings;
     private BeaconEffectSettings effectSettings;
+
+    public BannerShopSettings getBannerShopSettings() {
+        return bannerShopSettings;
+    }
+
+    public BeaconEffectSettings getEffectSettings() {
+        return effectSettings;
+    }
 
 
     @Override
@@ -43,6 +53,15 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         // REGISTER COMMANDS
         // ---------------------------
+
+        // SOULSMP MAIN COMMAND (/soulsmp)
+        if (getCommand("soulsmp") != null) {
+            var mainCmd = new me.Evil.soulSMP.commands.SoulSMPCommand(this);
+            getCommand("soulsmp").setExecutor(mainCmd);
+            getCommand("soulsmp").setTabCompleter(mainCmd);
+        } else {
+            getLogger().severe("Command 'soulsmp' not found in plugin.yml!");
+        }
 
         // TEAM COMMAND (/team, alias /t)
         if (getCommand("team") != null) {
@@ -69,7 +88,9 @@ public class SoulSMP extends JavaPlugin {
 
         // SOUL TOKEN COMMAND (/token)
         if (getCommand("token") != null) {
-            getCommand("token").setExecutor(new SoulTokenCommand(tokenManager));
+            SoulTokenCommand tokenCmd = new SoulTokenCommand(tokenManager);
+            getCommand("token").setExecutor(tokenCmd);
+            getCommand("token").setTabCompleter(tokenCmd);
         } else {
             getLogger().severe("Command 'token' not found in plugin.yml!");
         }
@@ -79,7 +100,7 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager), this);
         getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        getServer().getPluginManager().registerEvents(new BannerListener(teamManager, vaultManager), this);
+        getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
         getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
         getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings), this);
@@ -87,8 +108,8 @@ public class SoulSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
 
 
-        // BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-        // Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L);
+         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
+         Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L);
 
         getLogger().info("SoulSMP enabled.");
     }
@@ -105,5 +126,40 @@ public class SoulSMP extends JavaPlugin {
         }
 
         getLogger().info("SoulSMP disabled.");
+    }
+
+    public void reloadConfigs() {
+        // Recreate settings objects to pick up fresh values from dis?k
+        this.bannerShopSettings = new BannerShopSettings(this);
+        this.effectSettings     = new BeaconEffectSettings(this);
+
+        // Reload persisted team and vault data from disk.  This allows edits to
+        // teams.yml or vaults.yml to take effect immediately.
+        if (teamManager != null) {
+            teamManager.loadTeams();
+        }
+        if (vaultManager != null) {
+            vaultManager.loadVaults();
+        }
+
+        // Unregister listeners and re-register them with new settings...
+        org.bukkit.event.HandlerList.unregisterAll(this);
+
+        // Re‑register listeners with updated settings
+        getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager), this);
+        getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
+        getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
+        getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
+        getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
+        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings), this);
+        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager), this);
+        getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+
+        // Restart the beacon aura task
+        getServer().getScheduler().cancelTasks(this);
+        BeaconEffectManager aura = new BeaconEffectManager(teamManager);
+        Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L);
+
+        getLogger().info("SoulSMP configuration files reloaded.");
     }
 }
