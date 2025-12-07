@@ -280,14 +280,14 @@ public class Team {
         team.claimRadius = sec.getInt("claimRadius", 1);
         team.vaultSize   = sec.getInt("vaultSize", 9);
 
-//        // --- Beacon effects ---
-//        ConfigurationSection effSec = sec.getConfigurationSection("effects");
-//        if (effSec != null) {
-//            for (String effKey : effSec.getKeys(false)) {
-//                int lvl = effSec.getInt(effKey, 0);
-//                team.beaconEffects.put(effKey, lvl);
-//            }
-//        }
+        // --- Beacon effects ---
+        ConfigurationSection effSec = sec.getConfigurationSection("effects");
+        if (effSec != null) {
+            for (String effKey : effSec.getKeys(false)) {
+                int lvl = effSec.getInt(effKey, 0);
+                team.beaconEffects.put(effKey, lvl);
+            }
+        }
 
 
         // --- Banner location ---

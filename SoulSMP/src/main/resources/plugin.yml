@@ -23,3 +23,8 @@ commands:
     usage: /token give <player> <amount>
     permission: soulsmp.admin
     aliases: [st, stoken, soultoken]
+  soulsmp:
+    description: Primary SoulSMP command. Use to reload configuration files.
+    usage: /soulsmp reload
+    permission: soulsmp.admin
+    aliases: [ ssmp ]

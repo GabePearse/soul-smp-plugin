@@ -21,7 +21,6 @@ public class BeaconEffectManager {
             Team team = teams.getTeamByPlayer(p);
 
             if (team == null || !isInsideClaim(p, team)) {
-                clearAll(p);
                 continue;
             }
 
@@ -67,20 +66,11 @@ public class BeaconEffectManager {
         // amplifiers start at 0 (I = 0, II = 1, etc.)
         p.addPotionEffect(new PotionEffect(
                 type,
-                40,           // 2 seconds, refreshed every tick() call
+                20,           // 2 seconds, refreshed every tick() call
                 level - 1,
                 true,         // ambient
                 false,        // particles
                 false         // icon
         ));
-    }
-
-    private void clearAll(Player p) {
-        p.removePotionEffect(PotionEffectType.SPEED);
-        p.removePotionEffect(PotionEffectType.HASTE);
-        p.removePotionEffect(PotionEffectType.STRENGTH);
-        p.removePotionEffect(PotionEffectType.REGENERATION);
-        p.removePotionEffect(PotionEffectType.RESISTANCE);
-        p.removePotionEffect(PotionEffectType.JUMP_BOOST);
     }
 }

@@ -30,18 +30,26 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.NamespacedKey;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.event.entity.EntitySpawnEvent;
+
 
 
 public class BannerListener implements Listener {
 
-    private static final int MIN_BANNER_CHUNK_SEPARATION = 2;
+    private static final int MIN_BANNER_BLOCK_SEPARATION = 50;
 
     private final TeamManager teamManager;
     private final TeamVaultManager vaultManager;
+    private final NamespacedKey tntOwnerKey;
 
-    public BannerListener(TeamManager teamManager, TeamVaultManager vaultManager) {
+    public BannerListener(JavaPlugin plugin, TeamManager teamManager, TeamVaultManager vaultManager) {
         this.teamManager = teamManager;
         this.vaultManager = vaultManager;
+        this.tntOwnerKey = new NamespacedKey(plugin, "tnt_owner_team");
     }
 
     // =========================================================
@@ -94,8 +102,37 @@ public class BannerListener implements Listener {
             return;
         }
 
-        // Before claiming, make sure this new claim would NOT be too close or overlap
-        // another team's claim.
+        // --- Support checks for team banner placement ---
+
+        Material bannerType = block.getType();
+        boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
+
+        if (isWallBanner) {
+            // WALL BANNER: check the block it's attached to (behind it)
+            org.bukkit.block.data.BlockData data = block.getBlockData();
+            if (data instanceof org.bukkit.block.data.Directional directional) {
+                Block support = block.getRelative(directional.getFacing().getOppositeFace());
+                Material supportType = support.getType();
+
+                if (!supportType.isSolid() || supportType.hasGravity()) {
+                    event.setCancelled(true);
+                    player.sendMessage(ChatColor.RED + "Your team banner cannot hang from a gravity block. Attach it to a solid, non-gravity block.");
+                    return;
+                }
+            }
+        } else {
+            // STANDING BANNER: must be on a solid, non-gravity block below
+            Block support = block.getRelative(BlockFace.DOWN);
+            Material supportType = support.getType();
+
+            if (!supportType.isSolid() || supportType.hasGravity()) {
+                event.setCancelled(true);
+                player.sendMessage(ChatColor.RED + "Your team banner must be placed on a solid, non-gravity block.");
+                return;
+            }
+        }
+
+        // Before claiming, make sure this new claim would NOT be too close or overlap another team's claim.
         if (wouldOverlapOrBeTooClose(block.getLocation(), playerTeam)) {
             player.sendMessage(ChatColor.RED + "You cannot place your team banner here. "
                     + "Your claim would be too close to another team's claim. Move farther away.");
@@ -108,6 +145,7 @@ public class BannerListener implements Listener {
         player.sendMessage(ChatColor.GREEN + "This banner is now your team's claimed banner location!");
         player.sendMessage(ChatColor.YELLOW + "It cannot be broken or destroyed. Use /team banner remove (owner only) to remove it.");
     }
+
 
     // =========================================================
     // BLOCK BREAK – indestructible banner + claim protection
@@ -160,6 +198,34 @@ public class BannerListener implements Listener {
     // EXPLOSIONS – claim protection + special TNT logic
     // =========================================================
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onTNTSpawn(EntitySpawnEvent event) {
+        if (!(event.getEntity() instanceof TNTPrimed tnt)) {
+            return;
+        }
+
+        Team ownerTeam = null;
+
+        // 1) If there is a player source, use their team
+        Entity source = tnt.getSource();
+        if (source instanceof Player sourcePlayer) {
+            ownerTeam = teamManager.getTeamByPlayer(sourcePlayer);
+        }
+
+        // 2) If no player source, infer from where the TNT was primed:
+        //    if the TNT block was inside a claim, use that claim's team.
+        if (ownerTeam == null) {
+            Block spawnBlock = tnt.getLocation().getBlock();
+            ownerTeam = getClaimingTeam(spawnBlock);
+        }
+
+        // 3) If we found an owning team, store it on the TNT entity
+        if (ownerTeam != null) {
+            PersistentDataContainer pdc = tnt.getPersistentDataContainer();
+            pdc.set(tntOwnerKey, PersistentDataType.STRING, ownerTeam.getName());
+        }
+    }
+
     // Natural block explosions (beds, respawn anchors, etc.)
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
@@ -168,41 +234,64 @@ public class BannerListener implements Listener {
         );
     }
 
-
     // Entity explosions (TNT, creepers, withers, crystals, etc.)
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
         Entity entity = event.getEntity();
 
-        // Special case: TNT with a player source
+        // Special case: TNT (primed by player, redstone, chain reactions, etc.)
         if (entity instanceof TNTPrimed tnt) {
-            Entity source = tnt.getSource();
-            Player sourcePlayer = (source instanceof Player) ? (Player) source : null;
-            Team sourceTeam = (sourcePlayer != null) ? teamManager.getTeamByPlayer(sourcePlayer) : null;
+            Team sourceTeam = null;
 
-            // If TNT has no player source or source has no team -> treat like enemy TNT (full protection)
-            if (sourcePlayer == null || sourceTeam == null) {
-                event.blockList().removeIf(this::isInAnyClaimArea);
+            // 1) Try to read tagged owner from the TNT entity
+            PersistentDataContainer pdc = tnt.getPersistentDataContainer();
+            String teamName = pdc.get(tntOwnerKey, PersistentDataType.STRING);
+            if (teamName != null) {
+                for (Team team : teamManager.getAllTeams()) {
+                    if (team.getName().equalsIgnoreCase(teamName)) {
+                        sourceTeam = team;
+                        break;
+                    }
+                }
+            }
+
+            // 2) Fallback: for legacy / untagged TNT, use player source (if any)
+            if (sourceTeam == null) {
+                Entity source = tnt.getSource();
+                if (source instanceof Player sourcePlayer) {
+                    sourceTeam = teamManager.getTeamByPlayer(sourcePlayer);
+                }
+            }
+
+            // 3) If we STILL have no team -> treat as enemy TNT:
+            //    fully protect all claimed blocks and banners.
+            if (sourceTeam == null) {
+                event.blockList().removeIf(block ->
+                        isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
+                );
                 return;
             }
 
-            // TNT from a team member:
-            // - Can break blocks INSIDE that team's claim
-            // - Cannot break blocks in other teams' claims
+            final Team finalSourceTeam = sourceTeam;
+
+            // 4) TNT with a known team:
+            //    - Can break blocks INSIDE that team's claim
+            //    - Cannot break blocks in OTHER teams' claims
+            //    - Banner blocks are always protected
             event.blockList().removeIf(block -> {
-                // Banner block itself is always protected
                 if (isProtectedBannerOrSupport(block)) {
-                    return true; // remove from list => cannot be destroyed
+                    return true; // never destroy banner or its support
                 }
 
                 Team claimingTeam = getClaimingTeam(block);
                 if (claimingTeam == null) {
-                    return false; // not in any claim → TNT works normally
+                    // wilderness → TNT works normally
+                    return false;
                 }
 
-                // Inside this team's claim
-                if (claimingTeam.equals(sourceTeam)) {
-                    return false; // allow TNT from that team to break their own stuff
+                // Inside this TNT owner's claim → allowed
+                if (claimingTeam.equals(finalSourceTeam)) {
+                    return false;
                 }
 
                 // In another team's claim → protect it
@@ -217,6 +306,9 @@ public class BannerListener implements Listener {
                 isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
         );
     }
+
+
+
 
     // =========================================================
     // LIQUID FLOW – prevent water/lava griefing into claims
@@ -534,18 +626,25 @@ public class BannerListener implements Listener {
             int by = loc.getBlockY();
             int bz = loc.getBlockZ();
 
-            // Banner block itself
+            // The actual banner block
+            Block bannerBlock = block.getWorld().getBlockAt(bx, by, bz);
+            Material bannerType = bannerBlock.getType();
+            boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
+
+            // 1) Banner block itself
             if (block.getX() == bx && block.getY() == by && block.getZ() == bz) {
                 return true;
             }
 
-            // SUPPORT BLOCK FOR STANDING BANNER (below)
-            if (block.getX() == bx && block.getY() == by - 1 && block.getZ() == bz) {
-                return true;
+            // 2) SUPPORT BLOCK FOR STANDING BANNER (below)
+            //    Only if this team banner is NOT a wall banner
+            if (!isWallBanner) {
+                if (block.getX() == bx && block.getY() == by - 1 && block.getZ() == bz) {
+                    return true;
+                }
             }
 
-            // SUPPORT BLOCK FOR WALL BANNER
-            Block bannerBlock = block.getWorld().getBlockAt(bx, by, bz);
+            // 3) SUPPORT BLOCK FOR WALL BANNER (block behind the banner)
             if (bannerBlock.getState().getBlockData() instanceof org.bukkit.block.data.Directional directional) {
                 Block support = bannerBlock.getRelative(directional.getFacing().getOppositeFace());
                 if (block.equals(support)) {
@@ -555,6 +654,7 @@ public class BannerListener implements Listener {
         }
         return false;
     }
+
 
     /**
      * Returns the team that owns this location's claim area, or null if none.
@@ -662,11 +762,7 @@ public class BannerListener implements Listener {
 
         int nx = newBannerLoc.getBlockX();
         int nz = newBannerLoc.getBlockZ();
-        int newHalf = newRadiusTiles * 8; // same as your other claim logic
-
-        // Chunk coords for separation check
-        int newChunkX = nx >> 4;
-        int newChunkZ = nz >> 4;
+        int newHalf = newRadiusTiles * 8; // half-size of new claim square in blocks
 
         for (Team other : teamManager.getAllTeams()) {
             if (other == null) continue;
@@ -680,33 +776,20 @@ public class BannerListener implements Listener {
             int ox = otherLoc.getBlockX();
             int oz = otherLoc.getBlockZ();
 
-            // --- 1) Hard minimum chunk separation ---
-
-            int otherChunkX = ox >> 4;
-            int otherChunkZ = oz >> 4;
-
-            int dxChunks = Math.abs(newChunkX - otherChunkX);
-            int dzChunks = Math.abs(newChunkZ - otherChunkZ);
-
-            // If both axes are closer than MIN_BANNER_CHUNK_SEPARATION,
-            // the banners are considered "too close".
-            if (dxChunks < MIN_BANNER_CHUNK_SEPARATION && dzChunks < MIN_BANNER_CHUNK_SEPARATION) {
-                return true;
-            }
-
-            // --- 2) Claim-square overlap check (extra safety) ---
-
             int otherRadiusTiles = other.getClaimRadius();
             if (otherRadiusTiles < 0) otherRadiusTiles = 0;
 
-            int otherHalf = otherRadiusTiles * 8;
+            int otherHalf = otherRadiusTiles * 8; // half-size of other claim square
 
             int dx = nx - ox;
             int dz = nz - oz;
-            int totalHalf = newHalf + otherHalf;
 
-            // Squares overlap if their centers are closer than sum of half-sizes on both axes
-            if (Math.abs(dx) <= totalHalf && Math.abs(dz) <= totalHalf) {
+            // Maximum allowed center distance on each axis before claims are considered "too close":
+            // half of new + half of other + required gap between edges
+            int requiredCenterDistance = newHalf + otherHalf + MIN_BANNER_BLOCK_SEPARATION;
+
+            // If centers are closer than this on BOTH axes, the squares + gap overlap → too close
+            if (Math.abs(dx) <= requiredCenterDistance && Math.abs(dz) <= requiredCenterDistance) {
                 return true;
             }
         }

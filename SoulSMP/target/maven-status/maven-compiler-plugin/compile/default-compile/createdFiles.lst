@@ -36,3 +36,4 @@ me\Evil\soulSMP\listeners\TeamVaultListener.class
 me\Evil\soulSMP\chat\TeamChatManager.class
 me\Evil\soulSMP\listeners\PlayerDeathListener.class
 me\Evil\soulSMP\commands\TeamCommand.class
+me\Evil\soulSMP\commands\SoulSMPCommand.class
