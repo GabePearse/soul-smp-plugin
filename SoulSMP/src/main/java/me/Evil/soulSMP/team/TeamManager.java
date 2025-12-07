@@ -441,7 +441,7 @@ public class TeamManager {
             ConfigurationSection teamSection = teamsSection.getConfigurationSection(key);
             if (teamSection == null) continue;
 
-            Team team = Team.deserialize(teamSection);  // ← new overload
+            Team team = Team.deserialize(teamSection);
 
             if (team == null) continue;
 
@@ -453,5 +453,129 @@ public class TeamManager {
             }
         }
 
+    }
+
+    /**
+     * Reloads the on‑disk teams.yml and synchronizes any changes into the existing
+     * in‑memory {@link Team} instances.  This method attempts to update
+     * existing team objects rather than discarding them, so that any code
+     * holding references to {@link Team} objects (GUI holders, event
+     * listeners, etc.) will continue to operate on updated data.  New
+     * teams defined in the file will be created, while teams that no
+     * longer exist in the file will be removed and disbanded.
+     *
+     * <p>Fields synchronized include:</p>
+     *
+     * <ul>
+     *   <li>Owner UUID</li>
+     *   <li>Member list</li>
+     *   <li>Lives</li>
+     *   <li>Claim radius</li>
+     *   <li>Vault size</li>
+     *   <li>Beacon effect levels</li>
+     *   <li>Banner location</li>
+     *   <li>Banner design (material and patterns)</li>
+     * </ul>
+     */
+    @SuppressWarnings("unchecked")
+    public void reloadTeamsFromFile() {
+        // Ensure storage exists and reload the YAML configuration from disk.
+        if (teamsFile == null || teamsConfig == null) {
+            initStorage();
+        }
+        // Reload file to capture external modifications
+        teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
+
+        ConfigurationSection teamsSection = teamsConfig.getConfigurationSection("teams");
+        if (teamsSection == null) {
+            // If the file has no teams, remove all existing teams
+            for (Team existing : new java.util.ArrayList<>(teamsByName.values())) {
+                disbandTeam(existing);
+            }
+            return;
+        }
+
+        // Track existing team keys to detect removals
+        Set<String> remainingKeys = new HashSet<>(teamsByName.keySet());
+
+        for (String key : teamsSection.getKeys(false)) {
+            ConfigurationSection teamSection = teamsSection.getConfigurationSection(key);
+            if (teamSection == null) {
+                continue;
+            }
+
+            // Deserialize a fresh team from the YAML section to use as a template
+            Team loadedTeam = Team.deserialize(teamSection);
+            if (loadedTeam == null) {
+                continue;
+            }
+
+            String nameKey = loadedTeam.getName().toLowerCase(java.util.Locale.ROOT);
+            Team existing = teamsByName.get(nameKey);
+            if (existing != null) {
+                // Remove this key from remainingKeys since it's still present
+                remainingKeys.remove(nameKey);
+
+                // Update owner
+                java.util.UUID newOwner = loadedTeam.getOwner();
+                if (newOwner != null && !newOwner.equals(existing.getOwner())) {
+                    existing.setOwner(newOwner);
+                }
+
+                // Synchronize member list: remove members not present, add new ones
+                // Build sets for comparison
+                java.util.Set<java.util.UUID> existingMembers = new java.util.HashSet<>(existing.getMembers());
+                java.util.Set<java.util.UUID> loadedMembers   = new java.util.HashSet<>(loadedTeam.getMembers());
+
+                // Remove players who are no longer in the team
+                for (java.util.UUID uuid : existingMembers) {
+                    if (!loadedMembers.contains(uuid)) {
+                        existing.removeMember(uuid);
+                        teamsByPlayer.remove(uuid);
+                    }
+                }
+                // Add players who are new
+                for (java.util.UUID uuid : loadedMembers) {
+                    if (!existingMembers.contains(uuid)) {
+                        existing.addMember(uuid);
+                        teamsByPlayer.put(uuid, existing);
+                    }
+                }
+
+                // Update numeric fields
+                existing.setLives(loadedTeam.getLives());
+                existing.setClaimRadius(loadedTeam.getClaimRadius());
+                existing.setVaultSize(loadedTeam.getVaultSize());
+
+                // Synchronize beacon effects
+                existing.setEffectMap(loadedTeam.getEffectMap());
+
+                // Update banner location
+                existing.setBannerLocation(loadedTeam.getBannerLocation());
+
+                // Update banner design (material and patterns)
+                if (loadedTeam.getBannerMaterial() != null) {
+                    // Clone the design via an ItemStack to avoid internal modifications
+                    existing.setBannerDesign(loadedTeam.createBannerItem());
+                } else {
+                    existing.clearBannerDesign();
+                }
+
+            } else {
+                // New team: add to in‑memory collections
+                teamsByName.put(nameKey, loadedTeam);
+                for (java.util.UUID uuid : loadedTeam.getMembers()) {
+                    teamsByPlayer.put(uuid, loadedTeam);
+                }
+            }
+        }
+
+        // Any keys remaining in remainingKeys are teams that no longer exist in the file
+        for (String removedKey : remainingKeys) {
+            Team toRemove = teamsByName.get(removedKey);
+            if (toRemove != null) {
+                disbandTeam(toRemove);
+            }
+        }
     }
 }

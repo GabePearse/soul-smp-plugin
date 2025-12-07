@@ -129,23 +129,22 @@ public class SoulSMP extends JavaPlugin {
     }
 
     public void reloadConfigs() {
-        // Recreate settings objects to pick up fresh values from dis?k
+        // Recreate settings objects for shop.yml and effects.yml
         this.bannerShopSettings = new BannerShopSettings(this);
         this.effectSettings     = new BeaconEffectSettings(this);
 
-        // Reload persisted team and vault data from disk.  This allows edits to
-        // teams.yml or vaults.yml to take effect immediately.
+        // Reload teams.yml and update existing team objects
         if (teamManager != null) {
-            teamManager.loadTeams();
+            teamManager.reloadTeamsFromFile();
         }
+
+        // Reload vaults.yml (clearing the old cache in TeamVaultManager)
         if (vaultManager != null) {
             vaultManager.loadVaults();
         }
 
-        // Unregister listeners and re-register them with new settings...
+        // Unregister listeners, re-register them, and restart the aura task as before
         org.bukkit.event.HandlerList.unregisterAll(this);
-
-        // Re‑register listeners with updated settings
         getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager), this);
         getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
         getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);

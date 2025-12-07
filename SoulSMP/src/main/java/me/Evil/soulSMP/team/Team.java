@@ -83,13 +83,22 @@ public class Team {
         return members.size() >= MAX_MEMBERS;
     }
 
-    // --- Beacon effects ---
+    public void setEffectLevel(String id, int level) {
+        beaconEffects.put(id, level);
+    }
     public int getEffectLevel(String id) {
         return beaconEffects.getOrDefault(id, 0);
     }
 
-    public void setEffectLevel(String id, int level) {
-        beaconEffects.put(id, level);
+    public Map<String, Integer> getEffectMap() {
+        return new java.util.HashMap<>(beaconEffects);
+    }
+
+    public void setEffectMap(java.util.Map<String, Integer> newEffects) {
+        beaconEffects.clear();
+        if (newEffects != null) {
+            beaconEffects.putAll(newEffects);
+        }
     }
 
     // --- Claim location ---
@@ -202,6 +211,7 @@ public class Team {
     public void setVaultSize(int vaultSize) {
         this.vaultSize = vaultSize;
     }
+
 
     // --- Serialization helpers for persistence ---
     public Map<String, Object> serialize() {
