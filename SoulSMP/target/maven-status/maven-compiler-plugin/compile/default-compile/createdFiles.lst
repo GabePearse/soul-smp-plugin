@@ -1,6 +1,8 @@
 me\Evil\soulSMP\team\Team.class
+me\Evil\soulSMP\listeners\BannerListener$1.class
 me\Evil\soulSMP\util\InventoryUtils.class
 me\Evil\soulSMP\listeners\SoulTokenProtectionListener.class
+me\Evil\soulSMP\shop\DimensionBannerShopSettings.class
 me\Evil\soulSMP\listeners\TeamBannerShopListener$1.class
 me\Evil\soulSMP\team\TeamManager$JoinResult.class
 me\Evil\soulSMP\team\TeamManager$TeamInvite.class
@@ -12,6 +14,8 @@ me\Evil\soulSMP\listeners\BeaconEffectsListener.class
 me\Evil\soulSMP\team\TeamManager$1.class
 me\Evil\soulSMP\vault\TeamVaultManager.class
 me\Evil\soulSMP\commands\TeamWhisperCommand.class
+me\Evil\soulSMP\shop\DimensionBannerShopGui$1.class
+me\Evil\soulSMP\shop\DimensionBannerShopGui.class
 me\Evil\soulSMP\upgrades\BeaconEffectLevel.class
 me\Evil\soulSMP\upgrades\BeaconEffectsHolder.class
 me\Evil\soulSMP\shop\BannerShopItem.class
@@ -29,6 +33,7 @@ me\Evil\soulSMP\upgrades\BeaconEffectDefinition.class
 me\Evil\soulSMP\SoulSMP.class
 me\Evil\soulSMP\shop\TeamBannerShopHolder.class
 me\Evil\soulSMP\listeners\TeamBannerShopListener.class
+me\Evil\soulSMP\shop\DimensionBannerShopHolder.class
 me\Evil\soulSMP\upgrades\BeaconEffectsGui.class
 me\Evil\soulSMP\vault\TeamVaultHolder.class
 me\Evil\soulSMP\listeners\TeamChatListener.class

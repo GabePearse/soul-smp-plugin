@@ -99,6 +99,23 @@ public class TeamBannerShopGui {
                         .replace("{cost}", String.valueOf(cost));
             }
 
+            case DIMENSION_BANNER -> {
+                int cost = item.getBaseCost();
+                boolean unlocked = team.hasDimensionalBannerUnlocked(item.getDimensionKey());
+                line = line
+                        .replace("{cost}", String.valueOf(cost))
+                        .replace("{status}", unlocked ? "Unlocked" : "Locked");
+            }
+
+            case DIMENSION_TELEPORT -> {
+                int cost = item.getBaseCost();
+                boolean unlocked = team.hasDimensionalTeleportUnlocked(item.getDimensionKey());
+                line = line
+                        .replace("{cost}", String.valueOf(cost))
+                        .replace("{status}", unlocked ? "Unlocked" : "Locked");
+            }
+
+
             default -> {
                 // no placeholders
             }

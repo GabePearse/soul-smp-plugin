@@ -81,6 +81,8 @@ public class BannerShopSettings {
                 int maxRadius = sec.getInt("max-radius", 5);
                 int baseCost = sec.getInt("base-cost", 5);
                 double costMultiplier = sec.getDouble("cost-multiplier", 2.0);
+                String dimensionKey = sec.getString("dimension", null);
+
 
                 BannerShopItem item = new BannerShopItem(
                         id,
@@ -91,8 +93,10 @@ public class BannerShopSettings {
                         lore,
                         maxRadius,
                         baseCost,
-                        costMultiplier
+                        costMultiplier,
+                        dimensionKey
                 );
+
 
                 itemsBySlot.put(slot, item);
             }
