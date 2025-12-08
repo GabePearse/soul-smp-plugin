@@ -53,14 +53,19 @@ public class BeaconEffectsGui {
             inv.setItem(effect.getSlot(), item);
         }
 
-        // Close button
-        ItemStack close = new ItemStack(Material.BARRIER);
-        ItemMeta cm = close.getItemMeta();
-        cm.setDisplayName(ChatColor.RED + "Close");
-        close.setItemMeta(cm);
+        // Back button
+        ItemStack back = new ItemStack(Material.ARROW);
+        ItemMeta bm = back.getItemMeta();
+        if (bm != null) {
+            bm.setDisplayName(ChatColor.YELLOW + "Back");
+            back.setItemMeta(bm);
+        }
+        inv.setItem(26, back);
 
-        inv.setItem(26, close);
-
+        // ✅ FIX: Actually open the GUI
         player.openInventory(inv);
+
+
+        inv.setItem(26, back);
     }
 }

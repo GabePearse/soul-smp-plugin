@@ -4,14 +4,9 @@ import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
-import org.bukkit.Material;
+import org.bukkit.*;
 import org.bukkit.block.Block;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.TNTPrimed;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -30,12 +25,12 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPistonExtendEvent;
 import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.NamespacedKey;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.entity.EntitySpawnEvent;
 
+import java.util.Locale;
 
 
 public class BannerListener implements Listener {
@@ -55,95 +50,84 @@ public class BannerListener implements Listener {
     // =========================================================
     // BLOCK PLACE – claim protection + banner claim placement
     // =========================================================
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onBlockPlace(BlockPlaceEvent event) {
+    @EventHandler
+    public void onBannerPlace(BlockPlaceEvent event) {
         Block block = event.getBlockPlaced();
+        if (!block.getType().name().endsWith("_BANNER")) return;
+
         Player player = event.getPlayer();
-
-        // 1) Generic chunk-claim protection
-        if (isProtectedClaimArea(block, player)) {
-            event.setCancelled(true);
-            return;
-        }
-
-        // 2) Banner-specific logic
-        if (!isBannerBlock(block.getType())) {
-            return;
-        }
-
-        Team playerTeam = teamManager.getTeamByPlayer(player);
-        if (playerTeam == null) {
-            // Non-team players can still place banners as decoration (outside protected claims)
-            return;
-        }
-
         ItemStack inHand = event.getItemInHand();
-        if (inHand == null || inHand.getType() == Material.AIR) {
+
+        Team team = teamManager.getTeamByPlayer(player);
+        if (team == null) {
+            // Not in a team – banner is just decoration
             return;
         }
 
-        // Team must have a claimed design first
-        if (!playerTeam.hasClaimedBannerDesign()) {
-            player.sendMessage(ChatColor.RED + "Your team has not claimed a banner design yet. Use /team banner claim while holding one.");
+        // 1) If team has NO claimed banner yet: lock this design on first banner
+        if (!team.hasClaimedBannerDesign()) {
+            team.setBannerDesign(inHand);
+            teamManager.saveTeam(team);
+            player.sendMessage(ChatColor.GREEN + "Your team's banner design has been locked to this banner.");
+            // Now fall through to treat THIS placement as the official banner (claim / dimension, etc.)
+        }
+
+        // 2) If this banner does NOT match the team design, it is decorative → allow silently
+        if (!team.matchesBannerDesign(inHand)) {
+            // DO NOT cancel the event
+            // Just let it be a normal decorative banner
             return;
         }
 
-        // Only banners matching the claimed design can be used as the team banner location
-        if (!playerTeam.matchesBannerDesign(inHand)) {
-            // Allow placement, but it's just decorative
-            player.sendMessage(ChatColor.GRAY + "This banner does not match your claimed team banner design.");
-            return;
-        }
+        // 3) From here down, it IS an official team banner (matches design)
+        //    Now apply your existing claim or dimensional logic.
 
-        // It DOES match their design.
-        // If the team already has a banner location, don't override it.
-        if (playerTeam.hasBannerLocation()) {
-            player.sendMessage(ChatColor.YELLOW + "Your team already has a claimed banner location. Use /team banner remove first.");
-            return;
-        }
+        World world = block.getWorld();
+        World.Environment env = world.getEnvironment();
+        Location loc = block.getLocation().add(0.5, 0, 0.5); // nice centered location
 
-        // --- Support checks for team banner placement ---
+        String dimKey = switch (env) {
+            case NORMAL -> "OVERWORLD";
+            case NETHER -> "NETHER";
+            case THE_END -> "THE_END";
+            default -> null;
+        };
 
-        Material bannerType = block.getType();
-        boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
-
-        if (isWallBanner) {
-            // WALL BANNER: check the block it's attached to (behind it)
-            org.bukkit.block.data.BlockData data = block.getBlockData();
-            if (data instanceof org.bukkit.block.data.Directional directional) {
-                Block support = block.getRelative(directional.getFacing().getOppositeFace());
-                Material supportType = support.getType();
-
-                if (!supportType.isSolid() || supportType.hasGravity()) {
-                    event.setCancelled(true);
-                    player.sendMessage(ChatColor.RED + "Your team banner cannot hang from a gravity block. Attach it to a solid, non-gravity block.");
-                    return;
-                }
-            }
-        } else {
-            // STANDING BANNER: must be on a solid, non-gravity block below
-            Block support = block.getRelative(BlockFace.DOWN);
-            Material supportType = support.getType();
-
-            if (!supportType.isSolid() || supportType.hasGravity()) {
-                event.setCancelled(true);
-                player.sendMessage(ChatColor.RED + "Your team banner must be placed on a solid, non-gravity block.");
+        // Non-overworld dimensional banners
+        if (dimKey != null && env != World.Environment.NORMAL) {
+            // Must have purchased the dimension
+            if (!team.hasDimensionalBannerUnlocked(dimKey)) {
+                player.sendMessage(ChatColor.GRAY + "Your team hasn't bought the "
+                        + niceDimensionName(dimKey) + " banner upgrade. This banner is decorative only.");
+                // Don't cancel; it will just be decoration.
                 return;
             }
+
+            if (team.hasDimensionalBannerLocation(dimKey)) {
+                player.sendMessage(ChatColor.YELLOW + "Your team already has a "
+                        + niceDimensionName(dimKey) + " banner. Break the old one first.");
+                event.setCancelled(true); // prevent accidentally placing a second official one
+                return;
+            }
+
+            team.setDimensionalBanner(dimKey, loc);
+            teamManager.saveTeam(team);
+            player.sendMessage(ChatColor.GREEN + "Your team's "
+                    + niceDimensionName(dimKey) + " banner has been set here.");
+            return;
         }
 
-        // Before claiming, make sure this new claim would NOT be too close or overlap another team's claim.
-        if (wouldOverlapOrBeTooClose(block.getLocation(), playerTeam)) {
-            player.sendMessage(ChatColor.RED + "You cannot place your team banner here. "
-                    + "Your claim would be too close to another team's claim. Move farther away.");
+        // Overworld (main claim banner) – keep your existing claim logic here
+        // Example:
+        if (team.hasBannerLocation()) {
+            player.sendMessage(ChatColor.RED + "Your team already has a banner placed. Use `/team banner remove' to break it first.");
             event.setCancelled(true);
             return;
         }
 
-        // Set this placement as their official team banner location.
-        playerTeam.setBannerLocation(block.getLocation());
-        player.sendMessage(ChatColor.GREEN + "This banner is now your team's claimed banner location!");
-        player.sendMessage(ChatColor.YELLOW + "It cannot be broken or destroyed. Use /team banner remove (owner only) to remove it.");
+        team.setBannerLocation(loc);
+        teamManager.saveTeam(team);
+        player.sendMessage(ChatColor.GREEN + "Your team's main banner has been placed.");
     }
 
 
@@ -496,6 +480,49 @@ public class BannerListener implements Listener {
         }
     }
 
+    // =========================================================
+    // PROJECTILES - Prevent projectiles from hitting entities in claims
+    // =========================================================
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        // Only care about projectiles such as arrows/tridents
+        Entity damager = event.getDamager();
+        if (!(damager instanceof Projectile projectile)) {
+            return;
+        }
+
+        // Target must be a living entity (players, mobs)
+        if (!(event.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+
+        // Determine if the target is inside a team's claim
+        Team claimTeam = getClaimingTeamAtLocation(target.getLocation());
+        if (claimTeam == null) {
+            return; // not inside a claim
+        }
+
+        // Figure out who fired the projectile (player, dispenser, etc.)
+        Object shooterObj = projectile.getShooter();
+        Player shooter = (shooterObj instanceof Player p) ? p : null;
+
+        // If shooter is not a player (e.g. dispenser/railgun), ALWAYS block damage in claims
+        if (shooter == null) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // Shooter is a player: only allow if they are on the owning team
+        Team shooterTeam = teamManager.getTeamByPlayer(shooter);
+        if (shooterTeam == null || !shooterTeam.equals(claimTeam)) {
+            shooter.sendMessage(ChatColor.RED + "You cannot damage entities inside team '"
+                    + claimTeam.getName() + "' claim with projectiles.");
+            event.setCancelled(true);
+        }
+    }
+
+
 
     // =========================================================
     // Helpers
@@ -796,5 +823,17 @@ public class BannerListener implements Listener {
 
         return false;
     }
+
+    private String niceDimensionName(String dimKey) {
+        if (dimKey == null) return "Unknown Dimension";
+        dimKey = dimKey.toUpperCase(Locale.ROOT);
+        return switch (dimKey) {
+            case "OVERWORLD" -> "Overworld";
+            case "NETHER" -> "Nether";
+            case "THE_END" -> "The End";
+            default -> dimKey;
+        };
+    }
+
 
 }

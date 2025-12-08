@@ -278,6 +278,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         }
 
         team.setBannerDesign(inHand);
+        teamManager.saveTeam(team);
         player.sendMessage(ChatColor.GREEN + "Your team has claimed this banner design!");
         player.sendMessage(ChatColor.YELLOW + "Only banners with this exact design will count as your team banner.");
     }
@@ -315,10 +316,14 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             team.clearBannerDesign();
         }
 
+        // Persist changes
+        teamManager.saveTeam(team);
+
         player.sendMessage(ChatColor.YELLOW + "Your team's banner and all land claims have been unclaimed.");
         player.sendMessage(ChatColor.GREEN + "You can claim a new design with "
                 + ChatColor.AQUA + "/team banner claim" + ChatColor.GREEN +
                 " and place a new banner to start claiming again.");
+
     }
 
     // /team banner preview
@@ -356,6 +361,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         // Just delete the block; protection is handled in listeners for normal breaks
         block.setType(Material.AIR);
         team.setBannerLocation(null);
+        teamManager.saveTeam(team);
 
         player.sendMessage(ChatColor.YELLOW + "Your team's claimed banner has been removed.");
         player.sendMessage(ChatColor.GREEN + "You can place a new matching banner to set a new banner location.");

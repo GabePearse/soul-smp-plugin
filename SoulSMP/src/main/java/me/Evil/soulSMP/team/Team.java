@@ -32,6 +32,11 @@ public class Team {
     private Material bannerMaterial;            // e.g. RED_BANNER
     private List<Pattern> bannerPatterns = new ArrayList<>();
 
+    // Extra dimensional banners & unlocks (by dimension key: "OVERWORLD", "NETHER", "THE_END", etc.)
+    private final Map<String, Location> dimensionalBanners = new HashMap<>();
+    private final Set<String> unlockedDimensionalBanners = new HashSet<>();
+    private final Set<String> unlockedDimensionalTeleports = new HashSet<>();
+
     // Progression
     private int lives;
     private int vaultSize;
@@ -39,7 +44,9 @@ public class Team {
     public Team(String name, UUID owner) {
         this.name = name;
         this.owner = owner;
-        this.members.add(owner);
+        if (owner != null) {
+            this.members.add(owner);
+        }
 
         this.claimRadius = 1;
         this.lives = 10;
@@ -83,18 +90,21 @@ public class Team {
         return members.size() >= MAX_MEMBERS;
     }
 
+    // --- Beacon effects ---
+
     public void setEffectLevel(String id, int level) {
         beaconEffects.put(id, level);
     }
+
     public int getEffectLevel(String id) {
         return beaconEffects.getOrDefault(id, 0);
     }
 
     public Map<String, Integer> getEffectMap() {
-        return new java.util.HashMap<>(beaconEffects);
+        return new HashMap<>(beaconEffects);
     }
 
-    public void setEffectMap(java.util.Map<String, Integer> newEffects) {
+    public void setEffectMap(Map<String, Integer> newEffects) {
         beaconEffects.clear();
         if (newEffects != null) {
             beaconEffects.putAll(newEffects);
@@ -145,7 +155,6 @@ public class Team {
         this.bannerMaterial = null;
         this.bannerPatterns.clear();
     }
-
 
     /**
      * Check if the given banner item matches this team's claimed design.
@@ -212,12 +221,70 @@ public class Team {
         this.vaultSize = vaultSize;
     }
 
+    // --- Dimensional banners / teleports ---
+
+    public void unlockDimensionalBanner(String dimKey) {
+        dimKey = normalizeDimensionKey(dimKey);
+        if (dimKey != null) {
+            unlockedDimensionalBanners.add(dimKey);
+        }
+    }
+
+    public boolean hasDimensionalBannerUnlocked(String dimKey) {
+        dimKey = normalizeDimensionKey(dimKey);
+        return dimKey != null && unlockedDimensionalBanners.contains(dimKey);
+    }
+
+    public void unlockDimensionalTeleport(String dimKey) {
+        dimKey = normalizeDimensionKey(dimKey);
+        if (dimKey != null) {
+            unlockedDimensionalTeleports.add(dimKey);
+        }
+    }
+
+    public boolean hasDimensionalTeleportUnlocked(String dimKey) {
+        dimKey = normalizeDimensionKey(dimKey);
+        return dimKey != null && unlockedDimensionalTeleports.contains(dimKey);
+    }
+
+    public void setDimensionalBanner(String dimKey, Location loc) {
+        dimKey = normalizeDimensionKey(dimKey);
+        if (dimKey != null) {
+            if (loc == null) {
+                dimensionalBanners.remove(dimKey);
+            } else {
+                dimensionalBanners.put(dimKey, loc);
+            }
+        }
+    }
+
+    public Location getDimensionalBanner(String dimKey) {
+        dimKey = normalizeDimensionKey(dimKey);
+        if (dimKey == null) return null;
+        return dimensionalBanners.get(dimKey);
+    }
+
+    public boolean hasDimensionalBannerLocation(String dimKey) {
+        return getDimensionalBanner(dimKey) != null;
+    }
+
+    public Map<String, Location> getDimensionalBanners() {
+        return Collections.unmodifiableMap(dimensionalBanners);
+    }
+
+    private static String normalizeDimensionKey(String key) {
+        if (key == null) return null;
+        return key.toUpperCase(Locale.ROOT);
+    }
 
     // --- Serialization helpers for persistence ---
+
     public Map<String, Object> serialize() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("name", name);
-        map.put("owner", owner.toString());
+        if (owner != null) {
+            map.put("owner", owner.toString());
+        }
 
         List<String> memberStrings = new ArrayList<>();
         for (UUID uuid : members) {
@@ -229,7 +296,7 @@ public class Team {
         map.put("claimRadius", claimRadius);
         map.put("vaultSize", vaultSize);
 
-        if (bannerLocation != null) {
+        if (bannerLocation != null && bannerLocation.getWorld() != null) {
             Map<String, Object> loc = new LinkedHashMap<>();
             loc.put("world", bannerLocation.getWorld().getName());
             loc.put("x", bannerLocation.getX());
@@ -258,6 +325,31 @@ public class Team {
             map.put("bannerDesign", design);
         }
 
+        // Dimensional banners
+        if (!dimensionalBanners.isEmpty()) {
+            Map<String, Object> dimRoot = new LinkedHashMap<>();
+            for (Map.Entry<String, Location> entry : dimensionalBanners.entrySet()) {
+                String dimKey = entry.getKey();
+                Location loc = entry.getValue();
+                if (loc == null || loc.getWorld() == null) continue;
+
+                Map<String, Object> locMap = new LinkedHashMap<>();
+                locMap.put("world", loc.getWorld().getName());
+                locMap.put("x", loc.getX());
+                locMap.put("y", loc.getY());
+                locMap.put("z", loc.getZ());
+                dimRoot.put(dimKey, locMap);
+            }
+            map.put("dimensionalBanners", dimRoot);
+        }
+
+        if (!unlockedDimensionalBanners.isEmpty()) {
+            map.put("unlockedDimensionalBanners", new ArrayList<>(unlockedDimensionalBanners));
+        }
+        if (!unlockedDimensionalTeleports.isEmpty()) {
+            map.put("unlockedDimensionalTeleports", new ArrayList<>(unlockedDimensionalTeleports));
+        }
+
         return map;
     }
 
@@ -269,7 +361,10 @@ public class Team {
         String name = sec.getString("name", key);
 
         String ownerStr = sec.getString("owner");
-        UUID owner = ownerStr != null ? UUID.fromString(ownerStr) : null;
+        UUID owner = null;
+        if (ownerStr != null && !ownerStr.isEmpty()) {
+            owner = UUID.fromString(ownerStr);
+        }
 
         Team team = new Team(name, owner);
 
@@ -298,7 +393,6 @@ public class Team {
                 team.beaconEffects.put(effKey, lvl);
             }
         }
-
 
         // --- Banner location ---
         ConfigurationSection locSec = sec.getConfigurationSection("bannerLocation");
@@ -349,6 +443,49 @@ public class Team {
             }
 
             team.bannerPatterns = patterns;
+        }
+
+        // --- Dimensional banners & unlocks ---
+        ConfigurationSection dimSec = sec.getConfigurationSection("dimensionalBanners");
+        if (dimSec != null) {
+            for (String dimKey : dimSec.getKeys(false)) {
+                ConfigurationSection locSec2 = dimSec.getConfigurationSection(dimKey);
+                if (locSec2 == null) continue;
+
+                String worldName = locSec2.getString("world");
+                World world = worldName != null ? Bukkit.getWorld(worldName) : null;
+                if (world == null) {
+                    Bukkit.getLogger().warning("[SoulSMP] World '" + worldName
+                            + "' not found when loading dimensional banner '" + dimKey
+                            + "' for team " + team.name);
+                    continue;
+                }
+
+                double x = locSec2.getDouble("x");
+                double y = locSec2.getDouble("y");
+                double z = locSec2.getDouble("z");
+
+                team.dimensionalBanners.put(
+                        dimKey.toUpperCase(Locale.ROOT),
+                        new Location(world, x, y, z)
+                );
+            }
+        }
+
+        List<String> unlockedDims = sec.getStringList("unlockedDimensionalBanners");
+        if (unlockedDims != null) {
+            for (String k : unlockedDims) {
+                if (k == null) continue;
+                team.unlockedDimensionalBanners.add(k.toUpperCase(Locale.ROOT));
+            }
+        }
+
+        List<String> unlockedTp = sec.getStringList("unlockedDimensionalTeleports");
+        if (unlockedTp != null) {
+            for (String k : unlockedTp) {
+                if (k == null) continue;
+                team.unlockedDimensionalTeleports.add(k.toUpperCase(Locale.ROOT));
+            }
         }
 
         return team;

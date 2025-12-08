@@ -3,6 +3,8 @@ package me.Evil.soulSMP.shop;
 import org.bukkit.Material;
 
 import java.util.List;
+import java.util.Locale;
+
 
 public class BannerShopItem {
 
@@ -12,8 +14,14 @@ public class BannerShopItem {
         LIVES,
         STORAGE,
         CLOSE,
+        DIMENSION_BANNER,
+        DIMENSION_TELEPORT,
+        DIMENSION_MENU,
+
         UNKNOWN
     }
+
+
 
     private final String id;
     private final ShopItemType type;
@@ -21,6 +29,7 @@ public class BannerShopItem {
     private final Material material;
     private final String displayName;
     private final List<String> lore;
+    private final String dimensionKey;
 
     // Configurable values
     private final int maxRadius;
@@ -36,7 +45,8 @@ public class BannerShopItem {
             List<String> lore,
             int maxRadius,
             int baseCost,
-            double costMultiplier
+            double costMultiplier,
+            String dimensionKey
     ) {
         this.id = id;
         this.type = type;
@@ -47,7 +57,11 @@ public class BannerShopItem {
         this.maxRadius = maxRadius;
         this.baseCost = baseCost;
         this.costMultiplier = costMultiplier;
+        this.dimensionKey = dimensionKey != null
+                ? dimensionKey.toUpperCase(Locale.ROOT)
+                : null;
     }
+
 
     public String getId() { return id; }
     public ShopItemType getType() { return type; }
@@ -55,6 +69,9 @@ public class BannerShopItem {
     public Material getMaterial() { return material; }
     public String getDisplayName() { return displayName; }
     public List<String> getLore() { return lore; }
+    public String getDimensionKey() {
+        return dimensionKey;
+    }
 
     public int getMaxRadius() { return maxRadius; }
     public int getBaseCost() { return baseCost; }

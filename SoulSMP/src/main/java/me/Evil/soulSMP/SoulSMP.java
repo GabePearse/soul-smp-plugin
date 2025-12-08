@@ -7,6 +7,7 @@ import me.Evil.soulSMP.commands.TeamCommand;
 import me.Evil.soulSMP.commands.TeamChatToggleCommand;
 import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.shop.BannerShopSettings;
+import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
 import me.Evil.soulSMP.upgrades.BeaconEffectManager;
@@ -21,8 +22,10 @@ public class SoulSMP extends JavaPlugin {
     private TeamChatManager teamChatManager;
     private TeamVaultManager vaultManager;
     private SoulTokenManager tokenManager;
+
     private BannerShopSettings bannerShopSettings;
     private BeaconEffectSettings effectSettings;
+    private DimensionBannerShopSettings dimensionBannerShopSettings;
 
     public BannerShopSettings getBannerShopSettings() {
         return bannerShopSettings;
@@ -32,6 +35,9 @@ public class SoulSMP extends JavaPlugin {
         return effectSettings;
     }
 
+    public DimensionBannerShopSettings getDimensionBannerShopSettings() {
+        return dimensionBannerShopSettings;
+    }
 
     @Override
     public void onEnable() {
@@ -43,12 +49,14 @@ public class SoulSMP extends JavaPlugin {
         teamChatManager = new TeamChatManager();
         vaultManager = new TeamVaultManager(this, teamManager);
         tokenManager = new SoulTokenManager(this);
+
+        // Shop / effects settings
         bannerShopSettings = new BannerShopSettings(this);
         effectSettings = new BeaconEffectSettings(this);
+        dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
         vaultManager.loadVaults();
         teamManager.loadTeams();   // IMPORTANT: load BEFORE listeners register
-
 
         // ---------------------------
         // REGISTER COMMANDS
@@ -103,13 +111,30 @@ public class SoulSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
         getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings), this);
-        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager), this);
+        getServer().getPluginManager().registerEvents(
+                new TeamBannerShopListener(
+                        teamManager,
+                        tokenManager,
+                        bannerShopSettings,
+                        effectSettings,
+                        dimensionBannerShopSettings
+                ),
+                this
+        );
+        getServer().getPluginManager().registerEvents(
+                new BeaconEffectsListener(
+                        effectSettings,
+                        tokenManager,
+                        teamManager,
+                        bannerShopSettings
+                ),
+                this
+        );
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
 
-
-         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-         Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L);
+        // Beacon aura ticking
+        BeaconEffectManager aura = new BeaconEffectManager(teamManager);
+        Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L);
 
         getLogger().info("SoulSMP enabled.");
     }
@@ -129,9 +154,10 @@ public class SoulSMP extends JavaPlugin {
     }
 
     public void reloadConfigs() {
-        // Recreate settings objects for shop.yml and effects.yml
+        // Recreate settings objects for shop.yml, dimension-shop.yml, and effects.yml
         this.bannerShopSettings = new BannerShopSettings(this);
         this.effectSettings     = new BeaconEffectSettings(this);
+        this.dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
         // Reload teams.yml and update existing team objects
         if (teamManager != null) {
@@ -145,13 +171,31 @@ public class SoulSMP extends JavaPlugin {
 
         // Unregister listeners, re-register them, and restart the aura task as before
         org.bukkit.event.HandlerList.unregisterAll(this);
+
         getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager), this);
         getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
         getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
         getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings), this);
-        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager), this);
+        getServer().getPluginManager().registerEvents(
+                new TeamBannerShopListener(
+                        teamManager,
+                        tokenManager,
+                        bannerShopSettings,
+                        effectSettings,
+                        dimensionBannerShopSettings
+                ),
+                this
+        );
+        getServer().getPluginManager().registerEvents(
+                new BeaconEffectsListener(
+                        effectSettings,
+                        tokenManager,
+                        teamManager,
+                        bannerShopSettings
+                ),
+                this
+        );
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
 
         // Restart the beacon aura task
