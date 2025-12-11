@@ -545,22 +545,100 @@ public class BannerListener implements Listener {
     /**
      * Returns the team whose bannerLocation is exactly at this block, or null if none.
      */
+    // File: src/main/java/me/Evil/soulSMP/listeners/BannerListener.java
+// (only the updated helper methods are shown)
+
+    /**
+     * Returns the team whose banner block (main or dimensional) is exactly at this block, or null if none.
+     */
     private Team getTeamByBannerBlock(Block block) {
         for (Team team : teamManager.getAllTeams()) {
-            if (!team.hasBannerLocation()) continue;
+            // Main overworld banner
+            if (team.hasBannerLocation()) {
+                Location loc = team.getBannerLocation();
+                if (loc.getWorld() != null
+                        && loc.getWorld().equals(block.getWorld())
+                        && loc.getBlockX() == block.getX()
+                        && loc.getBlockY() == block.getY()
+                        && loc.getBlockZ() == block.getZ()) {
+                    return team;
+                }
+            }
 
-            var loc = team.getBannerLocation();
-            if (loc.getWorld() == null) continue;
+            // Dimensional banners (Nether, End, etc.)
+            for (Location dimLoc : team.getDimensionalBanners().values()) {
+                if (dimLoc == null || dimLoc.getWorld() == null) continue;
+                if (!dimLoc.getWorld().equals(block.getWorld())) continue;
 
-            if (!loc.getWorld().equals(block.getWorld())) continue;
-            if (loc.getBlockX() != block.getX()) continue;
-            if (loc.getBlockY() != block.getY()) continue;
-            if (loc.getBlockZ() != block.getZ()) continue;
-
-            return team;
+                if (dimLoc.getBlockX() == block.getX()
+                        && dimLoc.getBlockY() == block.getY()
+                        && dimLoc.getBlockZ() == block.getZ()) {
+                    return team;
+                }
+            }
         }
         return null;
     }
+
+    private boolean isProtectedBannerOrSupport(Block block) {
+        for (Team team : teamManager.getAllTeams()) {
+            // Main banner
+            if (team.hasBannerLocation()) {
+                if (isProtectedBannerOrSupportAt(team.getBannerLocation(), block)) {
+                    return true;
+                }
+            }
+
+            // Dimensional banners
+            for (Location loc : team.getDimensionalBanners().values()) {
+                if (loc == null) continue;
+                if (isProtectedBannerOrSupportAt(loc, block)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check protection against a specific banner location (main or dimensional).
+     */
+    private boolean isProtectedBannerOrSupportAt(Location loc, Block block) {
+        if (loc == null || loc.getWorld() == null) return false;
+        if (!block.getWorld().equals(loc.getWorld())) return false;
+
+        int bx = loc.getBlockX();
+        int by = loc.getBlockY();
+        int bz = loc.getBlockZ();
+
+        // The actual banner block at this location
+        Block bannerBlock = block.getWorld().getBlockAt(bx, by, bz);
+        Material bannerType = bannerBlock.getType();
+        boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
+
+        // 1) Banner block itself
+        if (block.getX() == bx && block.getY() == by && block.getZ() == bz) {
+            return true;
+        }
+
+        // 2) SUPPORT BLOCK FOR STANDING BANNER (below)
+        if (!isWallBanner) {
+            if (block.getX() == bx && block.getY() == by - 1 && block.getZ() == bz) {
+                return true;
+            }
+        }
+
+        // 3) SUPPORT BLOCK FOR WALL BANNER (block behind the banner)
+        if (bannerBlock.getState().getBlockData() instanceof org.bukkit.block.data.Directional directional) {
+            Block support = bannerBlock.getRelative(directional.getFacing().getOppositeFace());
+            if (block.equals(support)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 
     /**
      * Returns true if this block is inside any team's claim area (by chunks).
@@ -638,47 +716,6 @@ public class BannerListener implements Listener {
             }
         }
 
-        return false;
-    }
-
-
-    private boolean isProtectedBannerOrSupport(Block block) {
-        for (Team team : teamManager.getAllTeams()) {
-            if (!team.hasBannerLocation()) continue;
-
-            Location loc = team.getBannerLocation();
-            if (!block.getWorld().equals(loc.getWorld())) continue;
-
-            int bx = loc.getBlockX();
-            int by = loc.getBlockY();
-            int bz = loc.getBlockZ();
-
-            // The actual banner block
-            Block bannerBlock = block.getWorld().getBlockAt(bx, by, bz);
-            Material bannerType = bannerBlock.getType();
-            boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
-
-            // 1) Banner block itself
-            if (block.getX() == bx && block.getY() == by && block.getZ() == bz) {
-                return true;
-            }
-
-            // 2) SUPPORT BLOCK FOR STANDING BANNER (below)
-            //    Only if this team banner is NOT a wall banner
-            if (!isWallBanner) {
-                if (block.getX() == bx && block.getY() == by - 1 && block.getZ() == bz) {
-                    return true;
-                }
-            }
-
-            // 3) SUPPORT BLOCK FOR WALL BANNER (block behind the banner)
-            if (bannerBlock.getState().getBlockData() instanceof org.bukkit.block.data.Directional directional) {
-                Block support = bannerBlock.getRelative(directional.getFacing().getOppositeFace());
-                if (block.equals(support)) {
-                    return true;
-                }
-            }
-        }
         return false;
     }
 

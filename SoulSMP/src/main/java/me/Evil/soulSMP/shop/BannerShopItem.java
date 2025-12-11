@@ -9,21 +9,21 @@ import java.util.Locale;
 public class BannerShopItem {
 
     public enum ShopItemType {
+        CLOSE,
         RADIUS,
         BEACON_MENU,
         LIVES,
         STORAGE,
-        CLOSE,
+        DIMENSION_MENU,
         DIMENSION_BANNER,
         DIMENSION_TELEPORT,
-        DIMENSION_MENU,
-
+        BACK,
         UNKNOWN
     }
 
 
 
-    private final String id;
+    private final boolean isBackButton;
     private final ShopItemType type;
     private final int slot;
     private final Material material;
@@ -36,19 +36,9 @@ public class BannerShopItem {
     private final int baseCost;
     private final double costMultiplier;
 
-    public BannerShopItem(
-            String id,
-            ShopItemType type,
-            int slot,
-            Material material,
-            String displayName,
-            List<String> lore,
-            int maxRadius,
-            int baseCost,
-            double costMultiplier,
-            String dimensionKey
-    ) {
-        this.id = id;
+    public BannerShopItem(ShopItemType type, int slot, Material material, String displayName,
+                          List<String> lore, int maxRadius, int baseCost, double multiplier,
+                          String dimensionKey, boolean isBackButton) {
         this.type = type;
         this.slot = slot;
         this.material = material;
@@ -56,14 +46,12 @@ public class BannerShopItem {
         this.lore = lore;
         this.maxRadius = maxRadius;
         this.baseCost = baseCost;
-        this.costMultiplier = costMultiplier;
-        this.dimensionKey = dimensionKey != null
-                ? dimensionKey.toUpperCase(Locale.ROOT)
-                : null;
+        this.costMultiplier = multiplier;
+        this.dimensionKey = dimensionKey;
+        this.isBackButton = isBackButton;
     }
 
-
-    public String getId() { return id; }
+    public boolean isBackButton() { return isBackButton; }
     public ShopItemType getType() { return type; }
     public int getSlot() { return slot; }
     public Material getMaterial() { return material; }

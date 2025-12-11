@@ -111,26 +111,10 @@ public class SoulSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
         getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(
-                new TeamBannerShopListener(
-                        teamManager,
-                        tokenManager,
-                        bannerShopSettings,
-                        effectSettings,
-                        dimensionBannerShopSettings
-                ),
-                this
-        );
-        getServer().getPluginManager().registerEvents(
-                new BeaconEffectsListener(
-                        effectSettings,
-                        tokenManager,
-                        teamManager,
-                        bannerShopSettings
-                ),
-                this
-        );
+        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings), this);
+        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+        getServer().getPluginManager().registerEvents(new EnderChestBlocker(), this);
 
         // Beacon aura ticking
         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
@@ -177,26 +161,10 @@ public class SoulSMP extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
         getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(
-                new TeamBannerShopListener(
-                        teamManager,
-                        tokenManager,
-                        bannerShopSettings,
-                        effectSettings,
-                        dimensionBannerShopSettings
-                ),
-                this
-        );
-        getServer().getPluginManager().registerEvents(
-                new BeaconEffectsListener(
-                        effectSettings,
-                        tokenManager,
-                        teamManager,
-                        bannerShopSettings
-                ),
-                this
-        );
+        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings), this);
+        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings), this);
         getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+        getServer().getPluginManager().registerEvents(new EnderChestBlocker(), this);
 
         // Restart the beacon aura task
         getServer().getScheduler().cancelTasks(this);
