@@ -88,9 +88,9 @@ public class TeamBannerShopListener implements Listener {
             case BEACON_MENU -> handleBeaconMenu(player, currentTeam);
             case LIVES -> handleLivesPurchase(player, currentTeam, item);
             case STORAGE -> handleStorageUpgrade(player, currentTeam, item);
-            case DIMENSION_MENU -> handleDimensionMenuOpen(player, currentTeam); // 🔹 NEW
-            case UNKNOWN, DIMENSION_BANNER, DIMENSION_TELEPORT -> {
-                // DIMENSION_* should not be in main shop if you move them; ignore here
+            case DIMENSION_MENU -> handleDimensionMenuOpen(player, currentTeam);
+            case BACK -> {player.closeInventory(); }
+            case UNKNOWN -> {
             }
         }
     }
@@ -122,12 +122,10 @@ public class TeamBannerShopListener implements Listener {
         if (item == null) return;
 
         switch (item.getType()) {
-            case CLOSE -> {
-                // Back to main banner shop
-                TeamBannerShopGui.open(player, team, settings);
-            }
+            case CLOSE -> TeamBannerShopGui.open(player, team, settings);
             case DIMENSION_BANNER -> handleDimensionalBannerUnlock(player, currentTeam, item);
             case DIMENSION_TELEPORT -> handleDimensionalTeleport(player, currentTeam, item);
+            case BACK -> { TeamBannerShopGui.open(player, team, settings); }
             default -> {
                 // ignore other types in this menu
             }
@@ -306,8 +304,9 @@ public class TeamBannerShopListener implements Listener {
         }
         dimKey = dimKey.toUpperCase(Locale.ROOT);
 
-        // Must have bought the banner itself first
-        if (!team.hasDimensionalBannerUnlocked(dimKey)) {
+        // For non-Overworld dimensions, you must unlock the dimensional banner first.
+        // For OVERWORLD, we skip this check so you can just buy TP to your main banner.
+        if (!"OVERWORLD".equals(dimKey) && !team.hasDimensionalBannerUnlocked(dimKey)) {
             player.sendMessage(ChatColor.RED + "You must unlock the "
                     + niceDimensionName(dimKey) + " banner before buying teleportation.");
             return;
@@ -341,11 +340,24 @@ public class TeamBannerShopListener implements Listener {
         }
 
         // Teleport is unlocked → now this click is the actual teleport
-        Location loc = team.getDimensionalBanner(dimKey);
+        Location loc;
+
+        // OVERWORLD TP goes to the main team banner location.
+        if ("OVERWORLD".equals(dimKey)) {
+            loc = team.getBannerLocation();
+        } else {
+            loc = team.getDimensionalBanner(dimKey);
+        }
+
         if (loc == null || loc.getWorld() == null) {
-            player.sendMessage(ChatColor.RED + "Your team has not set a "
-                    + niceDimensionName(dimKey) + " banner location yet.");
-            player.sendMessage(ChatColor.GRAY + "Place one of your team banners in that dimension to set it.");
+            if ("OVERWORLD".equals(dimKey)) {
+                player.sendMessage(ChatColor.RED + "Your team does not have a main banner placed in the Overworld.");
+                player.sendMessage(ChatColor.GRAY + "Place one of your team banners in the Overworld to set it.");
+            } else {
+                player.sendMessage(ChatColor.RED + "Your team has not set a "
+                        + niceDimensionName(dimKey) + " banner location yet.");
+                player.sendMessage(ChatColor.GRAY + "Place one of your team banners in that dimension to set it.");
+            }
             return;
         }
 

@@ -43,11 +43,18 @@ public class BeaconEffectsListener implements Listener {
             return;
         }
 
-        // Slot 26 = Back button → return to Banner Shop
-        if (slot == 26) {
+        // Allow configurable BACK button (no more hard-coded slot 26)
+        BeaconEffectDefinition effect = settings.getAllEffects()
+                .stream().filter(e -> e.getSlot() == slot)
+                .findFirst().orElse(null);
+
+        if (effect == null) return;
+
+        if (effect.isBackButton()) {
             TeamBannerShopGui.open(player, team, bannerShopSettings);
             return;
         }
+
 
         // Find effect by slot
         BeaconEffectDefinition effect = settings.getAllEffects()

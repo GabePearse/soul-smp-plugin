@@ -82,10 +82,11 @@ public class BannerShopSettings {
                 int baseCost = sec.getInt("base-cost", 5);
                 double costMultiplier = sec.getDouble("cost-multiplier", 2.0);
                 String dimensionKey = sec.getString("dimension", null);
+                boolean backButton = sec.getBoolean("back-button", false);
+
 
 
                 BannerShopItem item = new BannerShopItem(
-                        id,
                         type,
                         slot,
                         mat,
@@ -94,7 +95,8 @@ public class BannerShopSettings {
                         maxRadius,
                         baseCost,
                         costMultiplier,
-                        dimensionKey
+                        dimensionKey,
+                        backButton
                 );
 
 

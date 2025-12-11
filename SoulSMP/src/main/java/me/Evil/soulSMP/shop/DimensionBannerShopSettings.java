@@ -85,9 +85,10 @@ public class DimensionBannerShopSettings {
             int baseCost = sec.getInt("base-cost", 0);
             double multiplier = sec.getDouble("cost-multiplier", 1.0);
             String dimensionKey = sec.getString("dimension", null);
+            boolean backButton = sec.getBoolean("back-button", false);
+
 
             BannerShopItem item = new BannerShopItem(
-                    id,
                     type,
                     slot,
                     mat,
@@ -96,7 +97,8 @@ public class DimensionBannerShopSettings {
                     maxRadius,
                     baseCost,
                     multiplier,
-                    dimensionKey
+                    dimensionKey,
+                    backButton
             );
 
             items.add(item);

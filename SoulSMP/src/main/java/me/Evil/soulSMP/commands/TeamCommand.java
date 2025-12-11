@@ -229,6 +229,14 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     // =====================
 
     // /team banner ...
+    // File: src/main/java/me/Evil/soulSMP/commands/TeamCommand.java
+// (only the changed parts are shown)
+
+// =====================
+// Banner subsection
+// =====================
+
+    // /team banner ...
     private void handleBanner(Player player, String[] args) {
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
@@ -246,11 +254,101 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         switch (sub) {
             case "claim"   -> handleBannerClaim(player, team);
             case "preview" -> handleBannerPreview(player, team);
-            case "remove"  -> handleBannerRemove(player, team);
+            case "remove"  -> handleBannerRemove(player, team, args); // <-- UPDATED
             case "unclaim" -> handleBannerUnclaim(player, team);
             default        -> sendBannerHelp(player);
         }
     }
+
+    // /team banner remove [world]
+//  - /team banner remove           -> remove main Overworld banner (existing behaviour)
+//  - /team banner remove overworld -> same as above
+//  - /team banner remove nether    -> remove Nether dimensional banner
+//  - /team banner remove end       -> remove End dimensional banner
+    private void handleBannerRemove(Player player, Team team, String[] args) {
+        if (!team.getOwner().equals(player.getUniqueId())) {
+            player.sendMessage(ChatColor.RED + "Only the team owner can remove the team banner.");
+            return;
+        }
+
+        // Default target = overworld/main banner
+        String target = (args.length >= 3) ? args[2].toLowerCase(Locale.ROOT) : "overworld";
+
+        switch (target) {
+            case "overworld", "normal", "main" -> {
+                if (!team.hasBannerLocation()) {
+                    player.sendMessage(ChatColor.RED + "Your team does not have a claimed banner placed in the Overworld.");
+                    return;
+                }
+
+                var loc = team.getBannerLocation();
+                var block = loc.getBlock();
+
+                // Just delete the block; protection is handled in listeners for normal breaks
+                block.setType(Material.AIR);
+                team.setBannerLocation(null);
+                teamManager.saveTeam(team);
+
+                player.sendMessage(ChatColor.YELLOW + "Your team's Overworld banner has been removed.");
+                player.sendMessage(ChatColor.GREEN + "You can place a new matching banner to set a new banner location.");
+            }
+            case "nether" -> {
+                String dimKey = "NETHER";
+                if (!team.hasDimensionalBannerLocation(dimKey)) {
+                    player.sendMessage(ChatColor.RED + "Your team does not have a Nether banner placed.");
+                    return;
+                }
+
+                var loc = team.getDimensionalBanner(dimKey);
+                if (loc == null || loc.getWorld() == null) {
+                    // Location is invalid, just clear it
+                    team.setDimensionalBanner(dimKey, null);
+                    teamManager.saveTeam(team);
+                    player.sendMessage(ChatColor.RED + "Your Nether banner location was invalid and has been cleared.");
+                    return;
+                }
+
+                var block = loc.getBlock();
+                if (block.getType().name().endsWith("_BANNER")) {
+                    block.setType(Material.AIR);
+                }
+
+                team.setDimensionalBanner(dimKey, null);
+                teamManager.saveTeam(team);
+
+                player.sendMessage(ChatColor.YELLOW + "Your team's Nether banner has been removed.");
+                player.sendMessage(ChatColor.GREEN + "You can place a new matching banner in the Nether to set a new banner location.");
+            }
+            case "end", "the_end" -> {
+                String dimKey = "THE_END";
+                if (!team.hasDimensionalBannerLocation(dimKey)) {
+                    player.sendMessage(ChatColor.RED + "Your team does not have an End banner placed.");
+                    return;
+                }
+
+                var loc = team.getDimensionalBanner(dimKey);
+                if (loc == null || loc.getWorld() == null) {
+                    team.setDimensionalBanner(dimKey, null);
+                    teamManager.saveTeam(team);
+                    player.sendMessage(ChatColor.RED + "Your End banner location was invalid and has been cleared.");
+                    return;
+                }
+
+                var block = loc.getBlock();
+                if (block.getType().name().endsWith("_BANNER")) {
+                    block.setType(Material.AIR);
+                }
+
+                team.setDimensionalBanner(dimKey, null);
+                teamManager.saveTeam(team);
+
+                player.sendMessage(ChatColor.YELLOW + "Your team's End banner has been removed.");
+                player.sendMessage(ChatColor.GREEN + "You can place a new matching banner in The End to set a new banner location.");
+            }
+            default -> player.sendMessage(ChatColor.RED + "Unknown world '" + target + "'. Use overworld, nether, or end.");
+        }
+    }
+
 
     // /team banner claim
     private void handleBannerClaim(Player player, Team team) {
@@ -341,30 +439,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
         player.getInventory().addItem(banner);
         player.sendMessage(ChatColor.GREEN + "You received a copy of your team banner.");
-    }
-
-    // /team banner remove
-    private void handleBannerRemove(Player player, Team team) {
-        if (!team.getOwner().equals(player.getUniqueId())) {
-            player.sendMessage(ChatColor.RED + "Only the team owner can remove the team banner.");
-            return;
-        }
-
-        if (!team.hasBannerLocation()) {
-            player.sendMessage(ChatColor.RED + "Your team does not have a claimed banner placed.");
-            return;
-        }
-
-        var loc = team.getBannerLocation();
-        var block = loc.getBlock();
-
-        // Just delete the block; protection is handled in listeners for normal breaks
-        block.setType(Material.AIR);
-        team.setBannerLocation(null);
-        teamManager.saveTeam(team);
-
-        player.sendMessage(ChatColor.YELLOW + "Your team's claimed banner has been removed.");
-        player.sendMessage(ChatColor.GREEN + "You can place a new matching banner to set a new banner location.");
     }
 
 
