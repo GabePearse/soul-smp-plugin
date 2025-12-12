@@ -7,6 +7,10 @@ import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.upgrades.BeaconEffectSettings;
 import me.Evil.soulSMP.upgrades.BeaconEffectsGui;
 import me.Evil.soulSMP.vault.TeamVaultManager;
+import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
+import me.Evil.soulSMP.upkeep.UpkeepStatus;
+
+
 
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -26,17 +30,20 @@ public class TeamBannerShopListener implements Listener {
     private final BannerShopSettings settings;
     private final BeaconEffectSettings effSettings;
     private final DimensionBannerShopSettings dimensionSettings;
+    private final TeamUpkeepManager upkeepManager;
 
     public TeamBannerShopListener(TeamManager teamManager,
                                   SoulTokenManager tokenManager,
                                   BannerShopSettings mainSettings,
                                   BeaconEffectSettings effSettings,
-                                  DimensionBannerShopSettings dimensionSettings) {
+                                  DimensionBannerShopSettings dimensionSettings,
+                                  TeamUpkeepManager upkeepManager) {
         this.teamManager = teamManager;
         this.tokenManager = tokenManager;
         this.settings = mainSettings;
         this.effSettings = effSettings;
         this.dimensionSettings = dimensionSettings;
+        this.upkeepManager = upkeepManager;
     }
 
     @EventHandler
@@ -82,18 +89,57 @@ public class TeamBannerShopListener implements Listener {
         BannerShopItem item = settings.getItemBySlot(rawSlot);
         if (item == null) return;
 
+        UpkeepStatus upkeep = currentTeam.getUpkeepStatus();
+
         switch (item.getType()) {
+
             case CLOSE -> handleClose(player);
-            case RADIUS -> handleRadiusUpgrade(player, currentTeam, item);
-            case BEACON_MENU -> handleBeaconMenu(player, currentTeam);
-            case LIVES -> handleLivesPurchase(player, currentTeam, item);
-            case STORAGE -> handleStorageUpgrade(player, currentTeam, item);
-            case DIMENSION_MENU -> handleDimensionMenuOpen(player, currentTeam);
-            case BACK -> {player.closeInventory(); }
+
+            case BACK -> {
+                player.closeInventory();
+            }
+
+            case UPKEEP -> {
+                // ✅ Always allowed for any team member
+                handleUpkeepPayment(player, currentTeam);
+            }
+
+            case RADIUS, BEACON_MENU, LIVES, STORAGE, DIMENSION_MENU -> {
+                // ❌ Block these if Unprotected
+                if (upkeep == UpkeepStatus.UNPROTECTED) {
+                    player.sendMessage(ChatColor.DARK_RED + "Your banner is Unprotected due to unpaid upkeep.");
+                    player.sendMessage(ChatColor.RED + "All banner perks are disabled until upkeep is paid.");
+                    return;
+                }
+
+                // Normal behavior
+                switch (item.getType()) {
+                    case RADIUS -> handleRadiusUpgrade(player, currentTeam, item);
+                    case BEACON_MENU -> handleBeaconMenu(player, currentTeam);
+                    case LIVES -> handleLivesPurchase(player, currentTeam, item);
+                    case STORAGE -> handleStorageUpgrade(player, currentTeam, item);
+                    case DIMENSION_MENU -> handleDimensionMenuOpen(player, currentTeam);
+                }
+            }
+
+            case DIMENSION_BANNER, DIMENSION_TELEPORT -> {
+                // Those are handled in handleDimensionShopClick, not here
+            }
+
             case UNKNOWN -> {
             }
         }
     }
+
+    private void handleUpkeepPayment(Player player, Team team) {
+        // Any team member can pay; no owner check.
+        upkeepManager.payUpkeep(player, team);
+
+        // Optionally re-open the shop so they see updated status
+        TeamBannerShopGui.open(player, team, settings, upkeepManager);
+
+    }
+
 
     private void handleDimensionMenuOpen(Player player, Team team) {
         player.closeInventory();
@@ -122,10 +168,10 @@ public class TeamBannerShopListener implements Listener {
         if (item == null) return;
 
         switch (item.getType()) {
-            case CLOSE -> TeamBannerShopGui.open(player, team, settings);
+            case CLOSE -> TeamBannerShopGui.open(player, team, settings, upkeepManager);
             case DIMENSION_BANNER -> handleDimensionalBannerUnlock(player, currentTeam, item);
             case DIMENSION_TELEPORT -> handleDimensionalTeleport(player, currentTeam, item);
-            case BACK -> { TeamBannerShopGui.open(player, team, settings); }
+            case BACK -> { TeamBannerShopGui.open(player, team, settings, upkeepManager); }
             default -> {
                 // ignore other types in this menu
             }
@@ -188,7 +234,8 @@ public class TeamBannerShopListener implements Listener {
         player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + cost + " Soul Tokens");
 
         // Refresh the shop to show updated radius / cost
-        TeamBannerShopGui.open(player, team, settings);
+        TeamBannerShopGui.open(player, team, settings, upkeepManager);
+
     }
 
 
@@ -218,7 +265,7 @@ public class TeamBannerShopListener implements Listener {
         player.sendMessage(ChatColor.AQUA + "Total lives: " + ChatColor.YELLOW + team.getLives());
 
         // Refresh the shop to update "current lives" display
-        TeamBannerShopGui.open(player, team, settings);
+        TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
     private void handleStorageUpgrade(Player player, Team team, BannerShopItem item) {
@@ -256,7 +303,7 @@ public class TeamBannerShopListener implements Listener {
         player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + cost + " Soul Tokens");
 
         // Refresh shop GUI with new values
-        TeamBannerShopGui.open(player, team, settings);
+        TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
     private void handleDimensionalBannerUnlock(Player player, Team team, BannerShopItem item) {
@@ -292,7 +339,7 @@ public class TeamBannerShopListener implements Listener {
 
         player.sendMessage(ChatColor.GREEN + "Your team can now have a banner in the "
                 + ChatColor.AQUA + niceDimensionName(dimKey) + ChatColor.GREEN + ".");
-        TeamBannerShopGui.open(player, team, settings);
+        TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
 
@@ -303,6 +350,18 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
         dimKey = dimKey.toUpperCase(Locale.ROOT);
+
+        UpkeepStatus upkeep = team.getUpkeepStatus();
+        if (upkeep == UpkeepStatus.UNSTABLE) {
+            player.sendMessage(ChatColor.YELLOW + "Your team is Unstable.");
+            player.sendMessage(ChatColor.RED + "Teleporting to banners is disabled until upkeep is paid.");
+            return;
+        }
+        if (upkeep == UpkeepStatus.UNPROTECTED) {
+            player.sendMessage(ChatColor.DARK_RED + "Your banner is Unprotected due to unpaid upkeep.");
+            player.sendMessage(ChatColor.RED + "Teleporting to banners is disabled until upkeep is paid.");
+            return;
+        }
 
         // For non-Overworld dimensions, you must unlock the dimensional banner first.
         // For OVERWORLD, we skip this check so you can just buy TP to your main banner.
@@ -335,7 +394,7 @@ public class TeamBannerShopListener implements Listener {
             player.sendMessage(ChatColor.GREEN + "Teleportation to your "
                     + ChatColor.AQUA + niceDimensionName(dimKey) + ChatColor.GREEN
                     + " banner is now unlocked!");
-            TeamBannerShopGui.open(player, team, settings);
+            TeamBannerShopGui.open(player, team, settings, upkeepManager);
             return;
         }
 

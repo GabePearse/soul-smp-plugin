@@ -6,6 +6,9 @@ import me.Evil.soulSMP.upgrades.*;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.TeamBannerShopGui;
+import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
+import me.Evil.soulSMP.upkeep.UpkeepStatus;
+
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
@@ -18,15 +21,18 @@ public class BeaconEffectsListener implements Listener {
     private final SoulTokenManager tokens;
     private final TeamManager teams;
     private final BannerShopSettings bannerShopSettings;
+    private final TeamUpkeepManager upkeepManager;
 
     public BeaconEffectsListener(BeaconEffectSettings s,
                                  SoulTokenManager t,
                                  TeamManager tm,
-                                 BannerShopSettings bannerShopSettings) {
+                                 BannerShopSettings bannerShopSettings,
+                                 TeamUpkeepManager um) {
         this.settings = s;
         this.tokens = t;
         this.teams = tm;
         this.bannerShopSettings = bannerShopSettings;
+        this.upkeepManager = um;
     }
 
     @EventHandler
@@ -43,7 +49,18 @@ public class BeaconEffectsListener implements Listener {
             return;
         }
 
-        // Allow configurable BACK button (no more hard-coded slot 26)
+        // 👉 ADD THIS:
+        UpkeepStatus upkeep = team.getUpkeepStatus();
+        if (upkeep == UpkeepStatus.UNPROTECTED) {
+            player.sendMessage("§4Your banner is Unprotected due to unpaid upkeep.");
+            player.sendMessage("§cBeacon upgrades are disabled until your team pays upkeep.");
+            // Send them back to the main shop for clarity
+            TeamBannerShopGui.open(player, team, bannerShopSettings);
+            return;
+        }
+        // (UNSTABLE is allowed here, so no block)
+
+        // Find effect by slot once
         BeaconEffectDefinition effect = settings.getAllEffects()
                 .stream().filter(e -> e.getSlot() == slot)
                 .findFirst().orElse(null);
@@ -51,17 +68,9 @@ public class BeaconEffectsListener implements Listener {
         if (effect == null) return;
 
         if (effect.isBackButton()) {
-            TeamBannerShopGui.open(player, team, bannerShopSettings);
+            TeamBannerShopGui.open(player, team, bannerShopSettings, upkeepManager);
             return;
         }
-
-
-        // Find effect by slot
-        BeaconEffectDefinition effect = settings.getAllEffects()
-                .stream().filter(e -> e.getSlot() == slot)
-                .findFirst().orElse(null);
-
-        if (effect == null) return;
 
         int current = team.getEffectLevel(effect.getId());
         int max = effect.getMaxLevel();
@@ -72,7 +81,6 @@ public class BeaconEffectsListener implements Listener {
         }
 
         BeaconEffectLevel next = effect.getLevel(current + 1);
-
         int cost = next.getCost();
 
         if (tokens.countTokensInInventory(player) < cost) {

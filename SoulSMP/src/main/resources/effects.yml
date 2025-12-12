@@ -1,0 +1,110 @@
+effects:
+  speed:
+    type: SPEED
+    slot: 10
+    material: SUGAR
+    display-name: "&bSpeed Aura"
+    levels:
+      1:
+        cost: 10
+        lore:
+          - "&7Grants &bSpeed I &7within your claim radius."
+          - "&eCost: &b{cost} tokens"
+
+      2:
+        cost: 25
+        lore:
+          - "&7Upgrades to &bSpeed II"
+          - "&eCost: &b{cost} tokens"
+
+      3:
+        cost: 60
+        lore:
+          - "&7Upgrades to &bSpeed III"
+          - "&eCost: &b{cost} tokens"
+
+  haste:
+    type: HASTE
+    slot: 11
+    material: IRON_PICKAXE
+    display-name: "&eHaste Aura"
+    levels:
+      1:
+        cost: 15
+        lore:
+          - "&7Grants &eHaste I"
+          - "&eCost: &b{cost} tokens"
+      2:
+        cost: 35
+        lore:
+          - "&7Upgrades to &eHaste II"
+          - "&eCost: &b{cost} tokens"
+
+  strength:
+    type: STRENGTH
+    slot: 12
+    material: BLAZE_POWDER
+    display-name: "&cStrength Aura"
+    levels:
+      1:
+        cost: 20
+        lore:
+          - "&7Grants &cStrength I"
+          - "&eCost: &b{cost} tokens"
+      2:
+        cost: 50
+        lore:
+          - "&7Upgrades to &cStrength II"
+          - "&eCost: &b{cost} tokens"
+
+  regen:
+    type: REGEN
+    slot: 13
+    material: GHAST_TEAR
+    display-name: "&dRegeneration Aura"
+    levels:
+      1:
+        cost: 25
+        lore:
+          - "&7Grants &dRegeneration I"
+          - "&eCost: &b{cost} tokens"
+
+  resistance:
+    type: RESISTANCE
+    slot: 14
+    material: SHIELD
+    display-name: "&9Resistance Aura"
+    levels:
+      1:
+        cost: 30
+        lore:
+          - "&7Grants &9Resistance I"
+          - "&eCost: &b{cost} tokens"
+
+  jump:
+    type: JUMP
+    slot: 15
+    material: RABBIT_FOOT
+    display-name: "&aJump Boost Aura"
+    levels:
+      1:
+        cost: 10
+        lore:
+          - "&7Grants &aJump I"
+          - "&eCost: &b{cost} tokens"
+      2:
+        cost: 35
+        lore:
+          - "&7Upgrades to &eJump II"
+          - "&eCost: &b{cost} tokens"
+  
+  back:
+    type: BACK
+    slot: 26
+    material: ARROW
+    display-name: "&cBack"
+    levels:
+      1:
+        cost: 0
+        lore:
+          - "&7Return to the main banner shop."

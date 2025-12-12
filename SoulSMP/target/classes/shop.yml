@@ -1,0 +1,84 @@
+banner-shop:
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: " "
+
+  items:
+    radius:
+      type: RADIUS
+      slot: 11
+      material: MAP
+      display-name: "&aUpgrade Claim Radius"
+      lore:
+        - "&7Increase your land claim radius."
+        - "&7Current radius: &b{current_radius}&7 chunks"
+        - "&7Max radius: &b{max_radius}&7 chunks"
+        - ""
+        - "&eCost: &b{cost} &7Soul Tokens"
+      max-radius: 10
+      base-cost: 5
+      cost-multiplier: 2.0
+
+    beacon:
+      type: BEACON_MENU
+      slot: 13
+      material: BEACON
+      display-name: "&bBeacon Effects"
+      lore:
+        - "&7Open the beacon effects menu."
+        - "&7Configure powerful aura upgrades."
+
+    life:
+      type: LIVES
+      slot: 15
+      material: ENCHANTED_GOLDEN_APPLE
+      display-name: "&bLives"
+      lore:
+        - "&7Increase your team's life count."
+        - "&7Current life count: &b{current_lives}"
+        - ""
+        - "&eCost: &b{cost} &7Soul Tokens"
+      base-cost: 100
+      cost-multiplier: 1.0
+
+    chest:
+      type: STORAGE
+      slot: 29
+      material: CHEST
+      display-name: "&bVault Slots"
+      lore:
+        - "&7Increase your team's vault slots."
+        - "&7Current vault slots: &b{current_slots}"
+        - ""
+        - "&eCost: &b{cost} &7Soul Tokens"
+      base-cost: 1
+      cost-multiplier: 1.35
+
+    upkeep:
+      type: UPKEEP
+      slot: 31
+      material: CLOCK
+      display-name: "&ePay Team Upkeep"
+      lore:
+        - "&7Pay your team's weekly upkeep."
+        - "&7Weeks owed: &b{weeks}"
+        - "&7Total cost: &b{cost} &7Soul Tokens"
+        - ""
+        - "&7Status: {status}"
+        - "&8Any team member can pay."
+
+    dimension-menu:
+      type: DIMENSION_MENU
+      slot: 33
+      material: ENDER_EYE
+      display-name: "&bDimension Shop"
+      lore:
+        - "&7Open to buy dimensional banners and teleporters."
+
+    close:
+      type: CLOSE
+      slot: 49
+      material: BARRIER
+      display-name: "&cClose"
+      lore:
+        - "&7Click to close"

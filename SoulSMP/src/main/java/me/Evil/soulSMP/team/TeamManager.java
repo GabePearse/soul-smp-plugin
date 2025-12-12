@@ -13,16 +13,11 @@ import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-/**
- * Manages all teams: creation, membership, lookups and persistence.
- */
 public class TeamManager {
 
     private final Plugin plugin;
 
-    // name (lowercase) -> team
     private final Map<String, Team> teamsByName = new HashMap<>();
-    // player UUID -> team
     private final Map<UUID, Team> teamsByPlayer = new HashMap<>();
 
     private File teamsFile;
@@ -32,31 +27,19 @@ public class TeamManager {
         this.plugin = plugin;
 
         File file = new File(plugin.getDataFolder(), "teams.yml");
-        if (!file.exists()) {
-            plugin.saveResource("teams.yml", false);
-        }
+        if (!file.exists()) plugin.saveResource("teams.yml", false);
 
         teamsFile = file;
-        teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
+        teamsConfig = YamlConfiguration.loadConfiguration(file);
     }
 
-
-    // ==========================
-    // Storage setup
-    // ==========================
-
     private void initStorage() {
-        if (!plugin.getDataFolder().exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            plugin.getDataFolder().mkdirs();
-        }
+        if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
 
         teamsFile = new File(plugin.getDataFolder(), "teams.yml");
         if (!teamsFile.exists()) {
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                teamsFile.createNewFile();
-            } catch (IOException e) {
+            try { teamsFile.createNewFile(); }
+            catch (IOException e) {
                 plugin.getLogger().severe("Could not create teams.yml: " + e.getMessage());
             }
         }
@@ -64,518 +47,318 @@ public class TeamManager {
         teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
     }
 
-    // ==========================
-    // Creation & removal
-    // ==========================
+    // --- Team creation ---
 
-    /**
-     * Creates a new team with the given name and owner.
-     *
-     * @return the created Team, or null if a team with that name already exists
-     */
     public Team createTeam(String name, Player owner) {
         String key = name.toLowerCase(Locale.ROOT);
-        if (teamsByName.containsKey(key)) {
-            return null;
-        }
+        if (teamsByName.containsKey(key)) return null;
 
         Team team = new Team(name, owner.getUniqueId());
         teamsByName.put(key, team);
         teamsByPlayer.put(owner.getUniqueId(), team);
 
-        saveTeam(team); // 💾 persist immediately
-
+        saveTeam(team);
         return team;
     }
 
-
-    /**
-     * Disbands the given team, removing all references.
-     */
     public void disbandTeam(Team team) {
         if (team == null) return;
 
         String key = team.getName().toLowerCase(Locale.ROOT);
         teamsByName.remove(key);
 
-        for (UUID uuid : team.getMembers()) {
-            teamsByPlayer.remove(uuid);
-        }
+        for (UUID uuid : team.getMembers()) teamsByPlayer.remove(uuid);
 
-        // 💾 remove from config and save
-        if (teamsConfig == null) {
-            initStorage();
-        }
-        String path = "teams." + key;
-        teamsConfig.set(path, null);
-        try {
-            teamsConfig.save(teamsFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save teams.yml while disbanding team " + team.getName() + ": " + e.getMessage());
+        if (teamsConfig == null) initStorage();
+
+        teamsConfig.set("teams." + key, null);
+        try { teamsConfig.save(teamsFile); }
+        catch (IOException e) {
+            plugin.getLogger().severe("Could not save teams.yml while disbanding: " + e.getMessage());
         }
     }
 
-
-    // ==========================
-    // Lookups
-    // ==========================
+    // --- Lookups ---
 
     public Team getTeamByName(String name) {
         if (name == null) return null;
         return teamsByName.get(name.toLowerCase(Locale.ROOT));
     }
 
-    public Team getTeamByPlayer(Player player) {
-        if (player == null) return null;
-        return teamsByPlayer.get(player.getUniqueId());
+    public Team getTeamByPlayer(Player p) {
+        if (p == null) return null;
+        return teamsByPlayer.get(p.getUniqueId());
     }
 
-    public Team getTeamByPlayer(UUID uuid) {
-        if (uuid == null) return null;
-        return teamsByPlayer.get(uuid);
-    }
+    public Team getTeamByPlayer(UUID uuid) { return teamsByPlayer.get(uuid); }
 
-    public boolean isInTeam(Player player) {
-        return getTeamByPlayer(player) != null;
-    }
+    public boolean isInTeam(Player p) { return getTeamByPlayer(p) != null; }
 
     public Collection<Team> getAllTeams() {
         return Collections.unmodifiableCollection(teamsByName.values());
     }
 
-    // ==========================
-    // Membership
-    // ==========================
+    // --- Membership / invites ---
 
-    // playerUUID -> invite info
     private final Map<UUID, TeamInvite> pendingInvites = new HashMap<>();
 
     public static class TeamInvite {
         public final Team team;
         public final long expiresAt;
-
-        public TeamInvite(Team team, long expiresAt) {
-            this.team = team;
-            this.expiresAt = expiresAt;
-        }
+        public TeamInvite(Team t, long exp) { this.team = t; this.expiresAt = exp; }
     }
 
     public boolean sendInvite(Player inviter, Player target) {
         Team inviterTeam = getTeamByPlayer(inviter);
         if (inviterTeam == null) return false;
 
-        // Only owner can invite OR allow all members — your choice:
-        // if (!inviterTeam.getOwner().equals(inviter.getUniqueId())) return false;
+        if (getTeamByPlayer(target) != null) return false;
 
-        UUID targetId = target.getUniqueId();
-
-        // Already in team
-        if (getTeamByPlayer(target) != null) {
-            inviter.sendMessage(ChatColor.RED + "That player is already in a team.");
-            return false;
-        }
-
-        // Overwrite previous invite
-        pendingInvites.put(targetId, new TeamInvite(
-                inviterTeam,
-                System.currentTimeMillis() + 60_000 // expires in 60 seconds
-        ));
+        UUID id = target.getUniqueId();
+        pendingInvites.put(id, new TeamInvite(inviterTeam,
+                System.currentTimeMillis() + 60_000));
 
         return true;
     }
 
-    public Team acceptInvite(Player player) {
-        UUID id = player.getUniqueId();
+    public Team acceptInvite(Player p) {
+        UUID id = p.getUniqueId();
 
-        TeamInvite invite = pendingInvites.get(id);
-        if (invite == null) return null;
+        TeamInvite inv = pendingInvites.get(id);
+        if (inv == null) return null;
 
-        // Expired?
-        if (System.currentTimeMillis() > invite.expiresAt) {
+        if (System.currentTimeMillis() > inv.expiresAt) {
             pendingInvites.remove(id);
             return null;
         }
 
-        Team team = invite.team;
         pendingInvites.remove(id);
+        addPlayerToTeam(inv.team, p);
 
-        addPlayerToTeam(team, player);
-        return team;
+        return inv.team;
     }
 
-    public boolean hasPendingInvite(Player player) {
-        return pendingInvites.containsKey(player.getUniqueId());
+    public boolean hasPendingInvite(Player p) {
+        return pendingInvites.containsKey(p.getUniqueId());
     }
 
-    public JoinResult addPlayerToTeam(Team team, Player player) {
-        if (team == null || player == null) return JoinResult.ERROR;
+    public JoinResult addPlayerToTeam(Team team, Player p) {
+        if (team == null || p == null) return JoinResult.ERROR;
 
-        UUID uuid = player.getUniqueId();
+        UUID id = p.getUniqueId();
 
-        if (teamsByPlayer.containsKey(uuid)) {
-            return JoinResult.ALREADY_IN_TEAM;
-        }
+        if (teamsByPlayer.containsKey(id)) return JoinResult.ALREADY_IN_TEAM;
+        if (team.isFull()) return JoinResult.TEAM_FULL;
 
-        if (team.isFull()) {
-            return JoinResult.TEAM_FULL;
-        }
+        if (!team.addMember(id)) return JoinResult.ERROR;
 
-        boolean added = team.addMember(uuid);
-        if (!added) {
-            return JoinResult.ERROR;
-        }
-
-        teamsByPlayer.put(uuid, team);
-
+        teamsByPlayer.put(id, team);
         saveTeam(team);
 
         return JoinResult.SUCCESS;
     }
 
+    public Team removePlayerFromTeam(Player p) {
+        if (p == null) return null;
 
-    public Team removePlayerFromTeam(Player player) {
-        if (player == null) return null;
-
-        UUID uuid = player.getUniqueId();
-        Team team = teamsByPlayer.remove(uuid);
+        UUID id = p.getUniqueId();
+        Team team = teamsByPlayer.remove(id);
         if (team == null) return null;
 
-        team.removeMember(uuid);
+        team.removeMember(id);
 
-        // If no members left, disband
-        if (team.getMembers().isEmpty()) {
-            disbandTeam(team); // disbandTeam already updates config
-        } else {
-            saveTeam(team); // 💾 member list changed
-        }
+        if (team.getMembers().isEmpty())
+            disbandTeam(team);
+        else saveTeam(team);
 
         return team;
     }
 
     public void transferOwner(Team team, UUID newOwner) {
-        if (team == null || newOwner == null) return;
-
+        if (team == null) return;
         team.setOwner(newOwner);
         saveTeam(team);
     }
 
+    public enum JoinResult { SUCCESS, TEAM_FULL, ALREADY_IN_TEAM, ERROR }
 
-    public enum JoinResult {
-        SUCCESS,
-        TEAM_FULL,
-        ALREADY_IN_TEAM,
-        ERROR
-    }
+    // --- Banner design uniqueness ---
 
-    // ==========================
-    // Banner design uniqueness
-    // ==========================
-
-    /**
-     * Returns the team that owns the given banner design (by item), or null if none.
-     */
     public Team getTeamByBannerItem(ItemStack stack) {
         if (stack == null) return null;
 
-        for (Team team : teamsByName.values()) {
-            if (team.hasClaimedBannerDesign() && team.matchesBannerDesign(stack)) {
-                return team;
-            }
+        for (Team t : teamsByName.values()) {
+            if (t.hasClaimedBannerDesign() && t.matchesBannerDesign(stack))
+                return t;
         }
-
         return null;
     }
 
-    // ==========================
-    // Border Visualization
-    // ==========================
+    // --- Border visualization ---
 
-    public void showTeamBorder(Player player) {
-        Team team = getTeamByPlayer(player);
-        if (team == null) {
-            player.sendMessage(ChatColor.RED + "You are not in a team.");
-            return;
-        }
+    public void showTeamBorder(Player p) {
+        Team t = getTeamByPlayer(p);
+        if (t == null) { p.sendMessage(ChatColor.RED + "You are not in a team."); return; }
+        if (!t.hasBannerLocation()) { p.sendMessage(ChatColor.RED + "Your team has no banner placed."); return; }
 
-        if (!team.hasBannerLocation()) {
-            player.sendMessage(ChatColor.RED + "Your team does not have a banner placed.");
-            return;
-        }
+        Location c = t.getBannerLocation();
+        World w = c.getWorld();
+        if (w == null) return;
 
-        var center = team.getBannerLocation();
-        var world = center.getWorld();
-        if (world == null) {
-            player.sendMessage(ChatColor.RED + "World for your banner is not loaded.");
-            return;
-        }
+        int tiles = Math.max(1, t.getClaimRadius());
+        int half = tiles * 8;
 
-        int radiusTiles = Math.max(1, team.getClaimRadius()); // 1 tile = 16x16
-        int halfSize = radiusTiles * 8; // ±8, ±16, ±24, etc.
-
-        int centerX = center.getBlockX();
-        int centerZ = center.getBlockZ();
-
-        int minX = centerX - halfSize;
-        int maxX = centerX + halfSize;
-        int minZ = centerZ - halfSize;
-        int maxZ = centerZ + halfSize;
-
-        player.sendMessage(ChatColor.AQUA + "Showing claim border for 10 seconds...");
+        int minX = c.getBlockX() - half;
+        int maxX = c.getBlockX() + half;
+        int minZ = c.getBlockZ() - half;
+        int maxZ = c.getBlockZ() + half;
 
         new BukkitRunnable() {
             int ticks = 0;
-
-            @Override
-            public void run() {
-                if (ticks >= 200) { // 10 seconds @ 10 ticks
-                    cancel();
-                    return;
-                }
-
-                highlightClaimBorder(world, minX, maxX, minZ, maxZ, player);
-
+            @Override public void run() {
+                if (ticks >= 200) { cancel(); return; }
+                draw(w, minX, maxX, minZ, maxZ, p);
                 ticks += 10;
             }
         }.runTaskTimer(plugin, 0L, 10L);
+
+        p.sendMessage(ChatColor.AQUA + "Showing border for 10 seconds...");
     }
 
-    /**
-     * Draws a 3D rectangular border (walls) around the claimed square.
-     */
-    private void highlightClaimBorder(World world, int minX, int maxX, int minZ, int maxZ, Player player) {
-        int baseY = player.getLocation().getBlockY();
-        int minY = baseY - 10;
-        int maxY = baseY + 20;
+    private void draw(World w, int minX, int maxX, int minZ, int maxZ, Player p) {
+        int y = p.getLocation().getBlockY();
+        int minY = Math.max(y - 10, w.getMinHeight());
+        int maxY = Math.min(y + 20, w.getMaxHeight());
 
-        minY = Math.max(minY, world.getMinHeight());
-        maxY = Math.min(maxY, world.getMaxHeight());
-
-        for (int y = minY; y <= maxY; y++) {
-            // Top & bottom edges
+        for (int yy = minY; yy <= maxY; yy++) {
             for (int x = minX; x <= maxX; x++) {
-                world.spawnParticle(Particle.GLOW, x + 0.5, y, minZ + 0.5, 0, 0, 0, 0);
-                world.spawnParticle(Particle.GLOW, x + 0.5, y, maxZ + 0.5, 0, 0, 0, 0);
+                w.spawnParticle(Particle.GLOW, x + .5, yy, minZ + .5, 0);
+                w.spawnParticle(Particle.GLOW, x + .5, yy, maxZ + .5, 0);
             }
-            // Left & right edges
             for (int z = minZ; z <= maxZ; z++) {
-                world.spawnParticle(Particle.GLOW, minX + 0.5, y, z + 0.5, 0, 0, 0, 0);
-                world.spawnParticle(Particle.GLOW, maxX + 0.5, y, z + 0.5, 0, 0, 0, 0);
+                w.spawnParticle(Particle.GLOW, minX + .5, yy, z + .5, 0);
+                w.spawnParticle(Particle.GLOW, maxX + .5, yy, z + .5, 0);
             }
         }
     }
 
+    // --- Persistence ---
 
-    // ==========================
-    // Persistence
-    // ==========================
-
-    /**
-     * Saves all teams to teams.yml using Team.serialize().
-     */
     public void saveTeams() {
-        if (teamsConfig == null) {
-            initStorage();
+        if (teamsConfig == null) initStorage();
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (Team t : teamsByName.values()) {
+            out.put(t.getName().toLowerCase(Locale.ROOT), t.serialize());
         }
 
-        teamsConfig.set("teams", null);
+        teamsConfig.set("teams", out);
 
-        Map<String, Object> allTeamsMap = new LinkedHashMap<>();
+        try { teamsConfig.save(teamsFile); }
+        catch (IOException e) { plugin.getLogger().severe("saveTeams: " + e.getMessage()); }
+    }
 
-        for (Team team : teamsByName.values()) {
-            allTeamsMap.put(team.getName().toLowerCase(Locale.ROOT), team.serialize());
-        }
+    public void saveTeam(Team t) {
+        if (t == null) return;
+        if (teamsConfig == null) initStorage();
 
-        teamsConfig.createSection("teams", allTeamsMap);
+        String key = "teams." + t.getName().toLowerCase(Locale.ROOT);
+        teamsConfig.set(key, t.serialize());
 
-        try {
-            teamsConfig.save(teamsFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save teams.yml: " + e.getMessage());
+        try { teamsConfig.save(teamsFile); }
+        catch (IOException e) {
+            plugin.getLogger().severe("Could not save team " + t.getName() + ": " + e.getMessage());
         }
     }
 
-    /**
-     * Saves a single team to teams.yml using Team.serialize().
-     */
-    public void saveTeam(Team team) {
-        if (team == null) return;
-
-        if (teamsConfig == null) {
-            initStorage();
-        }
-
-        String key = "teams." + team.getName().toLowerCase(Locale.ROOT);
-
-        // Overwrite this team's section
-        teamsConfig.set(key, null);
-        teamsConfig.createSection(key, team.serialize());
-
-        try {
-            plugin.getLogger().info("Saved team " + team.getName() + " to teams.yml.");
-            teamsConfig.save(teamsFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save teams.yml for team " + team.getName() + ": " + e.getMessage());
-        }
-    }
-
-
-    /**
-     * Loads all teams from teams.yml using Team.deserialize().
-     */
-    @SuppressWarnings("unchecked")
     public void loadTeams() {
         teamsByName.clear();
         teamsByPlayer.clear();
 
-        if (teamsConfig == null) {
-            initStorage();
+        if (teamsConfig == null) initStorage();
+
+        ConfigurationSection teamsSec = teamsConfig.getConfigurationSection("teams");
+        if (teamsSec == null) return;
+
+        for (String key : teamsSec.getKeys(false)) {
+            Team t = Team.deserialize(teamsSec.getConfigurationSection(key));
+            if (t == null) continue;
+
+            String nameKey = t.getName().toLowerCase(Locale.ROOT);
+            teamsByName.put(nameKey, t);
+            for (UUID uuid : t.getMembers()) teamsByPlayer.put(uuid, t);
         }
-
-        // "teams" is a ConfigurationSection, not a Map
-        ConfigurationSection teamsSection = teamsConfig.getConfigurationSection("teams");
-        if (teamsSection == null) {
-            return; // no teams yet
-        }
-
-        for (String key : teamsSection.getKeys(false)) {
-            ConfigurationSection teamSection = teamsSection.getConfigurationSection(key);
-            if (teamSection == null) continue;
-
-            Team team = Team.deserialize(teamSection);
-
-            if (team == null) continue;
-
-            String nameKey = team.getName().toLowerCase(Locale.ROOT);
-
-            teamsByName.put(nameKey, team);
-            for (UUID uuid : team.getMembers()) {
-                teamsByPlayer.put(uuid, team);
-            }
-        }
-
     }
 
-    /**
-     * Reloads the on‑disk teams.yml and synchronizes any changes into the existing
-     * in‑memory {@link Team} instances.  This method attempts to update
-     * existing team objects rather than discarding them, so that any code
-     * holding references to {@link Team} objects (GUI holders, event
-     * listeners, etc.) will continue to operate on updated data.  New
-     * teams defined in the file will be created, while teams that no
-     * longer exist in the file will be removed and disbanded.
-     *
-     * <p>Fields synchronized include:</p>
-     *
-     * <ul>
-     *   <li>Owner UUID</li>
-     *   <li>Member list</li>
-     *   <li>Lives</li>
-     *   <li>Claim radius</li>
-     *   <li>Vault size</li>
-     *   <li>Beacon effect levels</li>
-     *   <li>Banner location</li>
-     *   <li>Banner design (material and patterns)</li>
-     * </ul>
-     */
-    @SuppressWarnings("unchecked")
     public void reloadTeamsFromFile() {
-        // Ensure storage exists and reload the YAML configuration from disk.
-        if (teamsFile == null || teamsConfig == null) {
-            initStorage();
-        }
-        // Reload file to capture external modifications
+        if (teamsFile == null) initStorage();
+
         teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
 
-        ConfigurationSection teamsSection = teamsConfig.getConfigurationSection("teams");
-        if (teamsSection == null) {
-            // If the file has no teams, remove all existing teams
-            for (Team existing : new java.util.ArrayList<>(teamsByName.values())) {
-                disbandTeam(existing);
-            }
+        ConfigurationSection sec = teamsConfig.getConfigurationSection("teams");
+        if (sec == null) {
+            for (Team t : new ArrayList<>(teamsByName.values())) disbandTeam(t);
             return;
         }
 
-        // Track existing team keys to detect removals
-        Set<String> remainingKeys = new HashSet<>(teamsByName.keySet());
+        Set<String> remaining = new HashSet<>(teamsByName.keySet());
 
-        for (String key : teamsSection.getKeys(false)) {
-            ConfigurationSection teamSection = teamsSection.getConfigurationSection(key);
-            if (teamSection == null) {
-                continue;
-            }
+        for (String key : sec.getKeys(false)) {
+            var teamSec = sec.getConfigurationSection(key);
+            if (teamSec == null) continue;
 
-            // Deserialize a fresh team from the YAML section to use as a template
-            Team loadedTeam = Team.deserialize(teamSection);
-            if (loadedTeam == null) {
-                continue;
-            }
+            Team loaded = Team.deserialize(teamSec);
+            if (loaded == null) continue;
 
-            String nameKey = loadedTeam.getName().toLowerCase(java.util.Locale.ROOT);
+            String nameKey = loaded.getName().toLowerCase(Locale.ROOT);
             Team existing = teamsByName.get(nameKey);
+
             if (existing != null) {
-                // Remove this key from remainingKeys since it's still present
-                remainingKeys.remove(nameKey);
+                remaining.remove(nameKey);
 
-                // Update owner
-                java.util.UUID newOwner = loadedTeam.getOwner();
-                if (newOwner != null && !newOwner.equals(existing.getOwner())) {
-                    existing.setOwner(newOwner);
-                }
+                // update fields (including upkeep automatically loaded)
+                existing.setOwner(loaded.getOwner());
+                existing.setLives(loaded.getLives());
+                existing.setClaimRadius(loaded.getClaimRadius());
+                existing.setVaultSize(loaded.getVaultSize());
+                existing.setEffectMap(loaded.getEffectMap());
+                existing.setBannerLocation(loaded.getBannerLocation());
+                if (loaded.getBannerMaterial() != null)
+                    existing.setBannerDesign(loaded.createBannerItem());
+                else existing.clearBannerDesign();
 
-                // Synchronize member list: remove members not present, add new ones
-                // Build sets for comparison
-                java.util.Set<java.util.UUID> existingMembers = new java.util.HashSet<>(existing.getMembers());
-                java.util.Set<java.util.UUID> loadedMembers   = new java.util.HashSet<>(loadedTeam.getMembers());
+                existing.setLastUpkeepPaymentMillis(loaded.getLastUpkeepPaymentMillis());
+                existing.setUnpaidWeeks(loaded.getUnpaidWeeks());
+                existing.setUpkeepStatus(loaded.getUpkeepStatus());
+                existing.setBaseClaimRadiusForUpkeep(loaded.getBaseClaimRadiusForUpkeep());
 
-                // Remove players who are no longer in the team
-                for (java.util.UUID uuid : existingMembers) {
-                    if (!loadedMembers.contains(uuid)) {
-                        existing.removeMember(uuid);
-                        teamsByPlayer.remove(uuid);
+                // sync members
+                Set<UUID> old = new HashSet<>(existing.getMembers());
+                Set<UUID> nw = new HashSet<>(loaded.getMembers());
+
+                for (UUID u : old) {
+                    if (!nw.contains(u)) {
+                        existing.removeMember(u);
+                        teamsByPlayer.remove(u);
                     }
                 }
-                // Add players who are new
-                for (java.util.UUID uuid : loadedMembers) {
-                    if (!existingMembers.contains(uuid)) {
-                        existing.addMember(uuid);
-                        teamsByPlayer.put(uuid, existing);
+                for (UUID u : nw) {
+                    if (!old.contains(u)) {
+                        existing.addMember(u);
+                        teamsByPlayer.put(u, existing);
                     }
-                }
-
-                // Update numeric fields
-                existing.setLives(loadedTeam.getLives());
-                existing.setClaimRadius(loadedTeam.getClaimRadius());
-                existing.setVaultSize(loadedTeam.getVaultSize());
-
-                // Synchronize beacon effects
-                existing.setEffectMap(loadedTeam.getEffectMap());
-
-                // Update banner location
-                existing.setBannerLocation(loadedTeam.getBannerLocation());
-
-                // Update banner design (material and patterns)
-                if (loadedTeam.getBannerMaterial() != null) {
-                    // Clone the design via an ItemStack to avoid internal modifications
-                    existing.setBannerDesign(loadedTeam.createBannerItem());
-                } else {
-                    existing.clearBannerDesign();
                 }
 
             } else {
-                // New team: add to in‑memory collections
-                teamsByName.put(nameKey, loadedTeam);
-                for (java.util.UUID uuid : loadedTeam.getMembers()) {
-                    teamsByPlayer.put(uuid, loadedTeam);
-                }
+                teamsByName.put(nameKey, loaded);
+                for (UUID uuid : loaded.getMembers())
+                    teamsByPlayer.put(uuid, loaded);
             }
         }
 
-        // Any keys remaining in remainingKeys are teams that no longer exist in the file
-        for (String removedKey : remainingKeys) {
-            Team toRemove = teamsByName.get(removedKey);
-            if (toRemove != null) {
-                disbandTeam(toRemove);
-            }
+        for (String k : remaining) {
+            Team t = teamsByName.get(k);
+            if (t != null) disbandTeam(t);
         }
     }
 }

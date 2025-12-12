@@ -67,14 +67,3 @@ Full technical documentation is available in:
   Commands.md
   Config.md
 ```
-
----
-
-## 📝 License  
-Add your chosen license here.
-
----
-
-## 🤝 Contributing  
-PRs are welcome! Submit improvements, bug fixes, and enhancements.
-

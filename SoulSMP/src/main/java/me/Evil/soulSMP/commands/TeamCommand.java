@@ -230,11 +230,11 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     // /team banner ...
     // File: src/main/java/me/Evil/soulSMP/commands/TeamCommand.java
-// (only the changed parts are shown)
+    // (only the changed parts are shown)
 
-// =====================
-// Banner subsection
-// =====================
+    // =====================
+    // Banner subsection
+    // =====================
 
     // /team banner ...
     private void handleBanner(Player player, String[] args) {
@@ -261,10 +261,11 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     }
 
     // /team banner remove [world]
-//  - /team banner remove           -> remove main Overworld banner (existing behaviour)
-//  - /team banner remove overworld -> same as above
-//  - /team banner remove nether    -> remove Nether dimensional banner
-//  - /team banner remove end       -> remove End dimensional banner
+    //  - /team banner remove           -> remove main Overworld banner (existing behaviour)
+    //  - /team banner remove overworld -> same as above
+    //  - /team banner remove nether    -> remove Nether dimensional banner
+    //  - /team banner remove end       -> remove End dimensional banner
+
     private void handleBannerRemove(Player player, Team team, String[] args) {
         if (!team.getOwner().equals(player.getUniqueId())) {
             player.sendMessage(ChatColor.RED + "Only the team owner can remove the team banner.");
