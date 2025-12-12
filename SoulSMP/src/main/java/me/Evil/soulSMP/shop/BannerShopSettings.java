@@ -15,6 +15,10 @@ public class BannerShopSettings {
 
     private final Plugin plugin;
 
+    // GUI size + title
+    private final int size;
+    private final String title;
+
     // Filler background item
     private final Material fillerMaterial;
     private final String fillerName;
@@ -27,10 +31,24 @@ public class BannerShopSettings {
 
         File file = new File(plugin.getDataFolder(), "shop.yml");
         if (!file.exists()) {
+            // If you don't actually bundle shop.yml as a resource, you can
+            // comment this out – otherwise Bukkit will throw if it can't find it.
             plugin.saveResource("shop.yml", false);
         }
 
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
+
+        // Root section: banner-shop
+        ConfigurationSection root = cfg.getConfigurationSection("banner-shop");
+        if (root != null) {
+            this.size = root.getInt("size", 54);
+            this.title = ChatColor.translateAlternateColorCodes('&',
+                    root.getString("title", "&2Banner &aShop"));
+        } else {
+            this.size = 54;
+            this.title = ChatColor.DARK_GREEN + "Banner Shop";
+            plugin.getLogger().warning("[SoulSMP] 'banner-shop' section missing in shop.yml; using defaults.");
+        }
 
         // Filler
         ConfigurationSection fillerSec = cfg.getConfigurationSection("banner-shop.filler");
@@ -84,8 +102,6 @@ public class BannerShopSettings {
                 String dimensionKey = sec.getString("dimension", null);
                 boolean backButton = sec.getBoolean("back-button", false);
 
-
-
                 BannerShopItem item = new BannerShopItem(
                         type,
                         slot,
@@ -99,12 +115,19 @@ public class BannerShopSettings {
                         backButton
                 );
 
-
                 itemsBySlot.put(slot, item);
             }
         }
 
         plugin.getLogger().info("[SoulSMP] Loaded " + itemsBySlot.size() + " banner shop item(s).");
+    }
+
+    public int getSize() {
+        return size;
+    }
+
+    public String getTitle() {
+        return title;
     }
 
     public Material getFillerMaterial() {

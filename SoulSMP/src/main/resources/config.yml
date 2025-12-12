@@ -1,0 +1,15 @@
+upkeep:
+  enabled: true
+
+  # Base weekly upkeep in Soul Tokens
+  weekly-cost-base: 10
+
+  # Max number of weeks they can fall behind
+  max-weeks-backpay: 4
+
+  # Time thresholds (days since last upkeep payment)
+  unstable-threshold-days: 14
+  unprotected-threshold-days: 28
+
+  # Broadcast message when a team becomes Unprotected
+  unprotected-broadcast: "&4A team has lost Banner Protection due to unpaid upkeep."

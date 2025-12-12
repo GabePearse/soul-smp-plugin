@@ -17,6 +17,7 @@ public class BannerShopItem {
         DIMENSION_MENU,
         DIMENSION_BANNER,
         DIMENSION_TELEPORT,
+        UPKEEP,
         BACK,
         UNKNOWN
     }

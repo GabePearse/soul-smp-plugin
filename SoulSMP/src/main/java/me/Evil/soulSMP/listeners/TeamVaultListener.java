@@ -3,6 +3,7 @@ package me.Evil.soulSMP.listeners;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.shop.TeamBannerShopGui;
+import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
 import me.Evil.soulSMP.vault.TeamVaultHolder;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 import org.bukkit.entity.Player;
@@ -22,11 +23,14 @@ public class TeamVaultListener implements Listener {
 
     private final TeamVaultManager vaultManager;
     private final BannerShopSettings bannerShopSettings;
+    private final TeamUpkeepManager upkeepManager;
 
     public TeamVaultListener(TeamVaultManager vaultManager,
-                             BannerShopSettings bannerShopSettings) {
+                             BannerShopSettings bannerShopSettings,
+                             TeamUpkeepManager upKeepManager) {
         this.vaultManager = vaultManager;
         this.bannerShopSettings = bannerShopSettings;
+        this.upkeepManager = upKeepManager;
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -64,14 +68,13 @@ public class TeamVaultListener implements Listener {
         if (rawSlot == lastIndex) {
             event.setCancelled(true);
             player.closeInventory();
-            TeamBannerShopGui.open(player, team, bannerShopSettings);
+            TeamBannerShopGui.open(player, team, bannerShopSettings, upkeepManager);
             return;
         }
 
         // Locked slot logic
         if (vaultManager.isSlotLocked(team, rawSlot)) {
             event.setCancelled(true);
-            return;
         }
 
         // Otherwise: normal click inside an unlocked vault slot is allowed

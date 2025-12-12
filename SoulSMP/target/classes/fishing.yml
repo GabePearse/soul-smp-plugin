@@ -1,0 +1,112 @@
+enabled: true
+override-vanilla-fishing: true
+
+rarities:
+  COMMON:
+    display-name: "&7Common"
+    color: "&7"
+    weight: 60
+    score-multiplier: 1.0
+
+  UNCOMMON:
+    display-name: "&aUncommon"
+    color: "&a"
+    weight: 25
+    score-multiplier: 1.5
+
+  RARE:
+    display-name: "&9Rare"
+    color: "&9"
+    weight: 10
+    score-multiplier: 2.0
+
+  EPIC:
+    display-name: "&5Epic"
+    color: "&5"
+    weight: 3
+    score-multiplier: 3.0
+
+  LEGENDARY:
+    display-name: "&6Legendary"
+    color: "&6"
+    weight: 1
+    score-multiplier: 4.0
+
+  MYTHIC:
+    display-name: "&dMythic"
+    color: "&d"
+    weight: 0.25
+    score-multiplier: 5.0
+
+fish-types:
+  SALMON:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 10
+    allowed-rarities:
+      - COMMON
+      - UNCOMMON
+      - RARE
+    weight-ranges:
+      COMMON:
+        min: 5
+        max: 15
+      UNCOMMON:
+        min: 10
+        max: 20
+      RARE:
+        min: 15
+        max: 25
+
+  COD:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 8
+    allowed-rarities:
+      - COMMON
+      - UNCOMMON
+    weight-ranges:
+      COMMON:
+        min: 3
+        max: 10
+      UNCOMMON:
+        min: 8
+        max: 15
+
+  SWORDFISH:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 25
+    allowed-rarities:
+      - RARE
+      - EPIC
+      - LEGENDARY
+      - MYTHIC
+    weight-ranges:
+      RARE:
+        min: 15
+        max: 25
+      EPIC:
+        min: 18
+        max: 30
+      LEGENDARY:
+        min: 20
+        max: 35
+      MYTHIC:
+        min: 20
+        max: 40
+
+selection-weights:
+  SWORDFISH:
+    MYTHIC: 0.05
+    LEGENDARY: 0.5
+    EPIC: 1.0
+    RARE: 2.0
+
+display:
+  lore:
+    - "&7Type: &f{type_name}"
+    - "&7Rarity: {rarity_color}{rarity_name}"
+    - "&7Weight: &f{weight}lb"
+    - ""
+    - "&8Right-click to add to journal."

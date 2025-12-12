@@ -1,0 +1,94 @@
+dimension-shop:
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: " "
+
+  items:
+    back:
+      type: BACK
+      slot: 49
+      material: ARROW
+      display-name: "&cBack"
+      lore:
+        - "&7Return to the main banner shop."
+
+    overworld-banner:
+      type: UNKNOWN            
+      slot: 11                 
+      material: WHITE_BANNER
+      display-name: "&fOverworld Banner"
+      lore:
+        - "&7Your main team banner lives in the Overworld."
+        - "&7This is just a display item."
+      base-cost: 0
+      cost-multiplier: 1.0
+      dimension: "OVERWORLD"
+
+    overworld-teleport:
+      type: DIMENSION_TELEPORT
+      slot: 12
+      material: ENDER_PEARL
+      display-name: "&aOverworld Banner Teleport"
+      lore:
+        - "&7Teleport to your team's main banner"
+        - "&7in the Overworld."
+        - ""
+        - "&eCost: &b{cost} &7Soul Tokens"
+        - "&eStatus: {status}"
+      base-cost: 10            
+      cost-multiplier: 1.0
+      dimension: "OVERWORLD"
+
+    nether-banner:
+      type: DIMENSION_BANNER
+      dimension: NETHER
+      slot: 20
+      material: RED_BANNER
+      display-name: "&cNether Banner Unlock"
+      lore:
+        - "&7Unlock a team banner in the &cNether&7."
+        - "&7Place your team banner in the Nether to set it."
+        - "&7Status: &e{status}"
+        - "&7Cost: &b{cost} Soul Tokens"
+      base-cost: 10
+      cost-multiplier: 1.0
+
+    nether-teleport:
+      type: DIMENSION_TELEPORT
+      dimension: NETHER
+      slot: 21
+      material: ENDER_PEARL
+      display-name: "&dNether Banner Teleport"
+      lore:
+        - "&7Buy & use teleport to your &cNether &7banner."
+        - "&7Status: &e{status}"
+        - "&7Cost: &b{cost} Soul Tokens"
+      base-cost: 20
+      cost-multiplier: 1.0
+
+    end-banner:
+      type: DIMENSION_BANNER
+      dimension: THE_END
+      slot: 29
+      material: PURPLE_BANNER
+      display-name: "&5End Banner Unlock"
+      lore:
+        - "&7Unlock a team banner in &5The End&7."
+        - "&7Place your team banner in the End to set it."
+        - "&7Status: &e{status}"
+        - "&7Cost: &b{cost} Soul Tokens"
+      base-cost: 15
+      cost-multiplier: 1.0
+
+    end-teleport:
+      type: DIMENSION_TELEPORT
+      dimension: THE_END
+      slot: 30
+      material: CHORUS_FRUIT
+      display-name: "&dEnd Banner Teleport"
+      lore:
+        - "&7Buy & use teleport to your &5End &7banner."
+        - "&7Status: &e{status}"
+        - "&7Cost: &b{cost} Soul Tokens"
+      base-cost: 30
+      cost-multiplier: 1.0

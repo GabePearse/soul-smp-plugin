@@ -1,0 +1,81 @@
+teams:
+  team3:
+    name: team3
+    owner: b7fa41fe-acb9-445f-a6bc-68beaf7ef171
+    members:
+    - b7fa41fe-acb9-445f-a6bc-68beaf7ef171
+    effects: {}
+    lives: 10
+    claimRadius: 1
+    vaultSize: 11
+    bannerDesign:
+      material: WHITE_BANNER
+      patterns: []
+    unlockedDimensionalBanners: []
+    unlockedDimensionalTeleports: []
+    lastUpkeepPayment: 0
+    unpaidWeeks: 0
+    upkeepStatus: PROTECTED
+    baseClaimRadiusForUpkeep: -1
+  goats:
+    name: goats
+    owner: 980d61a9-d4eb-4cd2-bd2c-ff7c686db91e
+    members:
+    - 980d61a9-d4eb-4cd2-bd2c-ff7c686db91e
+    effects:
+      speed: 3
+    lives: 10
+    claimRadius: 1
+    vaultSize: 1
+    bannerLocation:
+      world: world
+      x: 39.0
+      y: -60.0
+      z: -10.0
+    bannerDesign:
+      material: WHITE_BANNER
+      patterns:
+      - color: LIGHT_BLUE
+        type: minecraft:flower
+    unlockedDimensionalBanners: []
+    unlockedDimensionalTeleports: []
+    lastUpkeepPayment: 0
+    unpaidWeeks: 0
+    upkeepStatus: PROTECTED
+    baseClaimRadiusForUpkeep: -1
+  dogn:
+    name: Dogn
+    owner: 530342dd-8be0-4a47-afe2-6c2d21ee29ff
+    members:
+    - 530342dd-8be0-4a47-afe2-6c2d21ee29ff
+    effects: {}
+    lives: 1
+    claimRadius: 1
+    vaultSize: 1
+    bannerLocation:
+      world: world
+      x: 25.5
+      y: -60.0
+      z: -39.5
+    bannerDesign:
+      material: WHITE_BANNER
+      patterns:
+      - color: CYAN
+        type: minecraft:flower
+    dimensionalBanners:
+      NETHER:
+        world: world_nether
+        x: 3.5
+        y: 42.0
+        z: 19.5
+    unlockedDimensionalBanners:
+    - NETHER
+    - THE_END
+    unlockedDimensionalTeleports:
+    - OVERWORLD
+    - NETHER
+    - THE_END
+    lastUpkeepPayment: 1765501931622
+    unpaidWeeks: 1
+    upkeepStatus: PROTECTED
+    baseClaimRadiusForUpkeep: -1
