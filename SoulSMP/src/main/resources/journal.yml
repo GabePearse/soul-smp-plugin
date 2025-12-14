@@ -1,0 +1,600 @@
+journal:
+  title: '&bFishing Journal'
+  size: 54
+  filler:
+    material: GRAY_STAINED_GLASS_PANE
+    name: ' '
+  deposit-slot: 49
+  deposit-item:
+    material: HOPPER
+    name: '&eTurn In Fish'
+    lore:
+    - '&7Place a Soul Fish here to'
+    - '&7record it in your journal.'
+    - ''
+    - '&8(Consumes 1 fish)'
+  navigation:
+    prev:
+      slot: 45
+      material: ARROW
+      name: '&cPrevious Page'
+    next:
+      slot: 53
+      material: ARROW
+      name: '&aNext Page'
+  undiscovered:
+    material: GREEN_STAINED_GLASS_PANE
+    name: '&8???'
+  pages:
+    count: 7
+    generated:
+      page-1:
+        title-suffix: ' &7(1/7)'
+        entries:
+          COMMON:COD:
+            slot: 10
+            chance: 0.05713350941511471
+          UNCOMMON:COD:
+            slot: 11
+            chance: 0.023805628922964464
+          RARE:COD:
+            slot: 12
+            chance: 0.009522251569185786
+          EPIC:COD:
+            slot: 13
+            chance: 0.002856675470755736
+          LEGENDARY:COD:
+            slot: 14
+            chance: 9.522251569185786E-4
+          MYTHIC:COD:
+            slot: 15
+            chance: 2.3805628922964465E-4
+          DIVINE:COD:
+            slot: 16
+            chance: 9.522251569185786E-6
+          COMMON:SARDINE:
+            slot: 19
+            chance: 0.04799214790869635
+          UNCOMMON:SARDINE:
+            slot: 20
+            chance: 0.01999672829529015
+          RARE:SARDINE:
+            slot: 21
+            chance: 0.00799869131811606
+          EPIC:SARDINE:
+            slot: 22
+            chance: 0.002399607395434818
+          LEGENDARY:SARDINE:
+            slot: 23
+            chance: 7.998691318116059E-4
+          MYTHIC:SARDINE:
+            slot: 24
+            chance: 1.9996728295290148E-4
+          DIVINE:SARDINE:
+            slot: 25
+            chance: 7.99869131811606E-6
+          COMMON:HERRING:
+            slot: 28
+            chance: 0.04570680753209177
+          UNCOMMON:HERRING:
+            slot: 29
+            chance: 0.019044503138371572
+          RARE:HERRING:
+            slot: 30
+            chance: 0.007617801255348629
+          EPIC:HERRING:
+            slot: 31
+            chance: 0.0022853403766045885
+          LEGENDARY:HERRING:
+            slot: 32
+            chance: 7.617801255348629E-4
+          MYTHIC:HERRING:
+            slot: 33
+            chance: 1.9044503138371572E-4
+          DIVINE:HERRING:
+            slot: 34
+            chance: 7.61780125534863E-6
+          COMMON:ANCHOVY:
+            slot: 37
+            chance: 0.043421467155487184
+          UNCOMMON:ANCHOVY:
+            slot: 38
+            chance: 0.018092277981452996
+          RARE:ANCHOVY:
+            slot: 39
+            chance: 0.007236911192581198
+          EPIC:ANCHOVY:
+            slot: 40
+            chance: 0.0021710733577743595
+          LEGENDARY:ANCHOVY:
+            slot: 41
+            chance: 7.236911192581198E-4
+          MYTHIC:ANCHOVY:
+            slot: 42
+            chance: 1.8092277981452995E-4
+          DIVINE:ANCHOVY:
+            slot: 43
+            chance: 7.2369111925811985E-6
+      page-2:
+        title-suffix: ' &7(2/7)'
+        entries:
+          COMMON:SALMON:
+            slot: 10
+            chance: 0.0399934565905803
+          UNCOMMON:SALMON:
+            slot: 11
+            chance: 0.016663940246075124
+          RARE:SALMON:
+            slot: 12
+            chance: 0.00666557609843005
+          EPIC:SALMON:
+            slot: 13
+            chance: 0.001999672829529015
+          LEGENDARY:SALMON:
+            slot: 14
+            chance: 6.66557609843005E-4
+          MYTHIC:SALMON:
+            slot: 15
+            chance: 1.6663940246075125E-4
+          DIVINE:SALMON:
+            slot: 16
+            chance: 6.66557609843005E-6
+          COMMON:MACKEREL:
+            slot: 19
+            chance: 0.03199476527246424
+          UNCOMMON:MACKEREL:
+            slot: 20
+            chance: 0.0133311521968601
+          RARE:MACKEREL:
+            slot: 21
+            chance: 0.00533246087874404
+          EPIC:MACKEREL:
+            slot: 22
+            chance: 0.001599738263623212
+          LEGENDARY:MACKEREL:
+            slot: 23
+            chance: 5.33246087874404E-4
+          MYTHIC:MACKEREL:
+            slot: 24
+            chance: 1.33311521968601E-4
+          DIVINE:MACKEREL:
+            slot: 25
+            chance: 5.3324608787440405E-6
+          COMMON:PERCH:
+            slot: 28
+            chance: 0.02970942489585965
+          UNCOMMON:PERCH:
+            slot: 29
+            chance: 0.01237892703994152
+          RARE:PERCH:
+            slot: 30
+            chance: 0.004951570815976608
+          EPIC:PERCH:
+            slot: 31
+            chance: 0.0014854712447929827
+          LEGENDARY:PERCH:
+            slot: 32
+            chance: 4.951570815976608E-4
+          MYTHIC:PERCH:
+            slot: 33
+            chance: 1.237892703994152E-4
+          DIVINE:PERCH:
+            slot: 34
+            chance: 4.9515708159766085E-6
+          COMMON:CARP:
+            slot: 37
+            chance: 0.027424084519255064
+          UNCOMMON:CARP:
+            slot: 38
+            chance: 0.011426701883022944
+          RARE:CARP:
+            slot: 39
+            chance: 0.004570680753209178
+          EPIC:CARP:
+            slot: 40
+            chance: 0.0013712042259627533
+          LEGENDARY:CARP:
+            slot: 41
+            chance: 4.570680753209177E-4
+          MYTHIC:CARP:
+            slot: 42
+            chance: 1.1426701883022943E-4
+          DIVINE:CARP:
+            slot: 43
+            chance: 4.570680753209177E-6
+      page-3:
+        title-suffix: ' &7(3/7)'
+        entries:
+          COMMON:TROUT:
+            slot: 10
+            chance: 0.025138744142650472
+          UNCOMMON:TROUT:
+            slot: 11
+            chance: 0.010474476726104364
+          RARE:TROUT:
+            slot: 12
+            chance: 0.004189790690441746
+          EPIC:TROUT:
+            slot: 13
+            chance: 0.0012569372071325239
+          LEGENDARY:TROUT:
+            slot: 14
+            chance: 4.189790690441746E-4
+          MYTHIC:TROUT:
+            slot: 15
+            chance: 1.0474476726104365E-4
+          DIVINE:TROUT:
+            slot: 16
+            chance: 4.189790690441746E-6
+          COMMON:FLOUNDER:
+            slot: 19
+            chance: 0.022853403766045884
+          UNCOMMON:FLOUNDER:
+            slot: 20
+            chance: 0.009522251569185786
+          RARE:FLOUNDER:
+            slot: 21
+            chance: 0.0038089006276743145
+          EPIC:FLOUNDER:
+            slot: 22
+            chance: 0.0011426701883022943
+          LEGENDARY:FLOUNDER:
+            slot: 23
+            chance: 3.8089006276743144E-4
+          MYTHIC:FLOUNDER:
+            slot: 24
+            chance: 9.522251569185786E-5
+          DIVINE:FLOUNDER:
+            slot: 25
+            chance: 3.808900627674315E-6
+          COMMON:BASS:
+            slot: 28
+            chance: 0.020568063389441296
+          UNCOMMON:BASS:
+            slot: 29
+            chance: 0.008570026412267206
+          RARE:BASS:
+            slot: 30
+            chance: 0.003428010564906883
+          EPIC:BASS:
+            slot: 31
+            chance: 0.0010284031694720649
+          LEGENDARY:BASS:
+            slot: 32
+            chance: 3.4280105649068827E-4
+          MYTHIC:BASS:
+            slot: 33
+            chance: 8.570026412267207E-5
+          DIVINE:BASS:
+            slot: 34
+            chance: 3.428010564906883E-6
+          COMMON:SNAPPER:
+            slot: 37
+            chance: 0.020568063389441296
+          UNCOMMON:SNAPPER:
+            slot: 38
+            chance: 0.008570026412267206
+          RARE:SNAPPER:
+            slot: 39
+            chance: 0.003428010564906883
+          EPIC:SNAPPER:
+            slot: 40
+            chance: 0.0010284031694720649
+          LEGENDARY:SNAPPER:
+            slot: 41
+            chance: 3.4280105649068827E-4
+          MYTHIC:SNAPPER:
+            slot: 42
+            chance: 8.570026412267207E-5
+          DIVINE:SNAPPER:
+            slot: 43
+            chance: 3.428010564906883E-6
+      page-4:
+        title-suffix: ' &7(4/7)'
+        entries:
+          COMMON:PUFFERFISH:
+            slot: 10
+            chance: 0.020568063389441296
+          UNCOMMON:PUFFERFISH:
+            slot: 11
+            chance: 0.008570026412267206
+          RARE:PUFFERFISH:
+            slot: 12
+            chance: 0.003428010564906883
+          EPIC:PUFFERFISH:
+            slot: 13
+            chance: 0.0010284031694720649
+          LEGENDARY:PUFFERFISH:
+            slot: 14
+            chance: 3.4280105649068827E-4
+          MYTHIC:PUFFERFISH:
+            slot: 15
+            chance: 8.570026412267207E-5
+          DIVINE:PUFFERFISH:
+            slot: 16
+            chance: 3.428010564906883E-6
+          COMMON:TROPICAL_FISH:
+            slot: 19
+            chance: 0.018282723012836708
+          UNCOMMON:TROPICAL_FISH:
+            slot: 20
+            chance: 0.007617801255348629
+          RARE:TROPICAL_FISH:
+            slot: 21
+            chance: 0.0030471205021394515
+          EPIC:TROPICAL_FISH:
+            slot: 22
+            chance: 9.141361506418356E-4
+          LEGENDARY:TROPICAL_FISH:
+            slot: 23
+            chance: 3.0471205021394515E-4
+          MYTHIC:TROPICAL_FISH:
+            slot: 24
+            chance: 7.617801255348629E-5
+          DIVINE:TROPICAL_FISH:
+            slot: 25
+            chance: 3.0471205021394518E-6
+          COMMON:HALIBUT:
+            slot: 28
+            chance: 0.018282723012836708
+          UNCOMMON:HALIBUT:
+            slot: 29
+            chance: 0.007617801255348629
+          RARE:HALIBUT:
+            slot: 30
+            chance: 0.0030471205021394515
+          EPIC:HALIBUT:
+            slot: 31
+            chance: 9.141361506418356E-4
+          LEGENDARY:HALIBUT:
+            slot: 32
+            chance: 3.0471205021394515E-4
+          MYTHIC:HALIBUT:
+            slot: 33
+            chance: 7.617801255348629E-5
+          DIVINE:HALIBUT:
+            slot: 34
+            chance: 3.0471205021394518E-6
+          COMMON:CATFISH:
+            slot: 37
+            chance: 0.017140052824534412
+          UNCOMMON:CATFISH:
+            slot: 38
+            chance: 0.007141688676889339
+          RARE:CATFISH:
+            slot: 39
+            chance: 0.002856675470755736
+          EPIC:CATFISH:
+            slot: 40
+            chance: 8.570026412267207E-4
+          LEGENDARY:CATFISH:
+            slot: 41
+            chance: 2.8566754707557356E-4
+          MYTHIC:CATFISH:
+            slot: 42
+            chance: 7.141688676889339E-5
+          DIVINE:CATFISH:
+            slot: 43
+            chance: 2.8566754707557358E-6
+      page-5:
+        title-suffix: ' &7(5/7)'
+        entries:
+          COMMON:SWORDFISH:
+            slot: 10
+            chance: 0.017140052824534412
+          UNCOMMON:SWORDFISH:
+            slot: 11
+            chance: 0.007141688676889339
+          RARE:SWORDFISH:
+            slot: 12
+            chance: 0.002856675470755736
+          EPIC:SWORDFISH:
+            slot: 13
+            chance: 8.570026412267207E-4
+          LEGENDARY:SWORDFISH:
+            slot: 14
+            chance: 2.8566754707557356E-4
+          MYTHIC:SWORDFISH:
+            slot: 15
+            chance: 7.141688676889339E-5
+          DIVINE:SWORDFISH:
+            slot: 16
+            chance: 2.8566754707557358E-6
+          COMMON:TUNA:
+            slot: 19
+            chance: 0.01599738263623212
+          UNCOMMON:TUNA:
+            slot: 20
+            chance: 0.00666557609843005
+          RARE:TUNA:
+            slot: 21
+            chance: 0.00266623043937202
+          EPIC:TUNA:
+            slot: 22
+            chance: 7.99869131811606E-4
+          LEGENDARY:TUNA:
+            slot: 23
+            chance: 2.66623043937202E-4
+          MYTHIC:TUNA:
+            slot: 24
+            chance: 6.66557609843005E-5
+          DIVINE:TUNA:
+            slot: 25
+            chance: 2.6662304393720202E-6
+          COMMON:SQUID:
+            slot: 28
+            chance: 0.01599738263623212
+          UNCOMMON:SQUID:
+            slot: 29
+            chance: 0.00666557609843005
+          RARE:SQUID:
+            slot: 30
+            chance: 0.00266623043937202
+          EPIC:SQUID:
+            slot: 31
+            chance: 7.99869131811606E-4
+          LEGENDARY:SQUID:
+            slot: 32
+            chance: 2.66623043937202E-4
+          MYTHIC:SQUID:
+            slot: 33
+            chance: 6.66557609843005E-5
+          DIVINE:SQUID:
+            slot: 34
+            chance: 2.6662304393720202E-6
+          COMMON:PIKE:
+            slot: 37
+            chance: 0.013712042259627532
+          UNCOMMON:PIKE:
+            slot: 38
+            chance: 0.005713350941511472
+          RARE:PIKE:
+            slot: 39
+            chance: 0.002285340376604589
+          EPIC:PIKE:
+            slot: 40
+            chance: 6.856021129813766E-4
+          LEGENDARY:PIKE:
+            slot: 41
+            chance: 2.2853403766045886E-4
+          MYTHIC:PIKE:
+            slot: 42
+            chance: 5.7133509415114716E-5
+          DIVINE:PIKE:
+            slot: 43
+            chance: 2.2853403766045887E-6
+      page-6:
+        title-suffix: ' &7(6/7)'
+        entries:
+          COMMON:EEL:
+            slot: 10
+            chance: 0.012569372071325236
+          UNCOMMON:EEL:
+            slot: 11
+            chance: 0.005237238363052182
+          RARE:EEL:
+            slot: 12
+            chance: 0.002094895345220873
+          EPIC:EEL:
+            slot: 13
+            chance: 6.284686035662619E-4
+          LEGENDARY:EEL:
+            slot: 14
+            chance: 2.094895345220873E-4
+          MYTHIC:EEL:
+            slot: 15
+            chance: 5.2372383630521826E-5
+          DIVINE:EEL:
+            slot: 16
+            chance: 2.094895345220873E-6
+          COMMON:MARLIN:
+            slot: 19
+            chance: 0.011426701883022942
+          UNCOMMON:MARLIN:
+            slot: 20
+            chance: 0.004761125784592893
+          RARE:MARLIN:
+            slot: 21
+            chance: 0.0019044503138371572
+          EPIC:MARLIN:
+            slot: 22
+            chance: 5.713350941511471E-4
+          LEGENDARY:MARLIN:
+            slot: 23
+            chance: 1.9044503138371572E-4
+          MYTHIC:MARLIN:
+            slot: 24
+            chance: 4.761125784592893E-5
+          DIVINE:MARLIN:
+            slot: 25
+            chance: 1.9044503138371574E-6
+          COMMON:STINGRAY:
+            slot: 28
+            chance: 0.010284031694720648
+          UNCOMMON:STINGRAY:
+            slot: 29
+            chance: 0.004285013206133603
+          RARE:STINGRAY:
+            slot: 30
+            chance: 0.0017140052824534415
+          EPIC:STINGRAY:
+            slot: 31
+            chance: 5.142015847360324E-4
+          LEGENDARY:STINGRAY:
+            slot: 32
+            chance: 1.7140052824534413E-4
+          MYTHIC:STINGRAY:
+            slot: 33
+            chance: 4.285013206133603E-5
+          DIVINE:STINGRAY:
+            slot: 34
+            chance: 1.7140052824534414E-6
+          COMMON:OCTOPUS:
+            slot: 37
+            chance: 0.009141361506418354
+          UNCOMMON:OCTOPUS:
+            slot: 38
+            chance: 0.0038089006276743145
+          RARE:OCTOPUS:
+            slot: 39
+            chance: 0.0015235602510697257
+          EPIC:OCTOPUS:
+            slot: 40
+            chance: 4.570680753209178E-4
+          LEGENDARY:OCTOPUS:
+            slot: 41
+            chance: 1.5235602510697257E-4
+          MYTHIC:OCTOPUS:
+            slot: 42
+            chance: 3.8089006276743144E-5
+          DIVINE:OCTOPUS:
+            slot: 43
+            chance: 1.5235602510697259E-6
+      page-7:
+        title-suffix: ' &7(7/7)'
+        entries:
+          COMMON:SHARK:
+            slot: 10
+            chance: 0.00799869131811606
+          UNCOMMON:SHARK:
+            slot: 11
+            chance: 0.003332788049215025
+          RARE:SHARK:
+            slot: 12
+            chance: 0.00133311521968601
+          EPIC:SHARK:
+            slot: 13
+            chance: 3.99934565905803E-4
+          LEGENDARY:SHARK:
+            slot: 14
+            chance: 1.33311521968601E-4
+          MYTHIC:SHARK:
+            slot: 15
+            chance: 3.332788049215025E-5
+          DIVINE:SHARK:
+            slot: 16
+            chance: 1.3331152196860101E-6
+          COMMON:NAUTILUS:
+            slot: 19
+            chance: 0.003428010564906883
+          UNCOMMON:NAUTILUS:
+            slot: 20
+            chance: 0.001428337735377868
+          RARE:NAUTILUS:
+            slot: 21
+            chance: 5.713350941511472E-4
+          EPIC:NAUTILUS:
+            slot: 22
+            chance: 1.7140052824534416E-4
+          LEGENDARY:NAUTILUS:
+            slot: 23
+            chance: 5.7133509415114716E-5
+          MYTHIC:NAUTILUS:
+            slot: 24
+            chance: 1.4283377353778679E-5
+          DIVINE:NAUTILUS:
+            slot: 25
+            chance: 5.713350941511472E-7
+          DIVINE:ABYSSAL_BARRIER:
+            slot: 28
+            chance: 9.451786907573811E-7
