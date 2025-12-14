@@ -35,13 +35,22 @@ public class FishingJournalGUI {
         if (page > pageCount) page = pageCount;
 
         String baseTitle = cfg.getString("journal.title", "&bFishing Journal");
-        String suffix = cfg.getString("journal.pages.page-" + page + ".title-suffix", " &7(" + page + "/" + pageCount + ")");
+        String suffix = cfg.getString(
+                "journal.pages.page-" + page + ".title-suffix",
+                " &7(" + page + "/" + pageCount + ")"
+        );
         String title = color(baseTitle + suffix);
 
-        Inventory inv = Bukkit.createInventory(new FishingJournalHolder(player.getUniqueId(), page), size, title);
+        Inventory inv = Bukkit.createInventory(
+                new FishingJournalHolder(player.getUniqueId(), page),
+                size,
+                title
+        );
 
         // filler
-        Material fillerMat = Material.matchMaterial(cfg.getString("journal.filler.material", "GRAY_STAINED_GLASS_PANE"));
+        Material fillerMat = Material.matchMaterial(
+                cfg.getString("journal.filler.material", "GRAY_STAINED_GLASS_PANE")
+        );
         if (fillerMat == null) fillerMat = Material.GRAY_STAINED_GLASS_PANE;
         String fillerName = color(cfg.getString("journal.filler.name", " "));
 
@@ -76,25 +85,45 @@ public class FishingJournalGUI {
             Material prevMat = Material.matchMaterial(cfg.getString("journal.navigation.prev.material", "ARROW"));
             if (prevMat == null) prevMat = Material.ARROW;
             String prevName = color(cfg.getString("journal.navigation.prev.name", "&cPrevious Page"));
-            inv.setItem(prevSlot, namedItem(prevMat, prevName, List.of(color("&7Go to page " + (page - 1)))));
+            inv.setItem(prevSlot, namedItem(
+                    prevMat,
+                    prevName,
+                    List.of(color("&7Go to page " + (page - 1)))
+            ));
         } else {
-            inv.setItem(prevSlot, namedItem(Material.GRAY_STAINED_GLASS_PANE, color("&8No previous"), List.of()));
+            inv.setItem(prevSlot, namedItem(
+                    Material.GRAY_STAINED_GLASS_PANE,
+                    color("&8No previous"),
+                    List.of()
+            ));
         }
 
         if (page < pageCount) {
             Material nextMat = Material.matchMaterial(cfg.getString("journal.navigation.next.material", "ARROW"));
             if (nextMat == null) nextMat = Material.ARROW;
             String nextName = color(cfg.getString("journal.navigation.next.name", "&aNext Page"));
-            inv.setItem(nextSlot, namedItem(nextMat, nextName, List.of(color("&7Go to page " + (page + 1)))));
+            inv.setItem(nextSlot, namedItem(
+                    nextMat,
+                    nextName,
+                    List.of(color("&7Go to page " + (page + 1)))
+            ));
         } else {
-            inv.setItem(nextSlot, namedItem(Material.GRAY_STAINED_GLASS_PANE, color("&8No next"), List.of()));
+            inv.setItem(nextSlot, namedItem(
+                    Material.GRAY_STAINED_GLASS_PANE,
+                    color("&8No next"),
+                    List.of()
+            ));
         }
     }
 
     private ItemStack buildDepositItem(FileConfiguration cfg) {
         ConfigurationSection sec = cfg.getConfigurationSection("journal.deposit-item");
         if (sec == null) {
-            return namedItem(Material.HOPPER, color("&eTurn In Fish"), List.of(color("&7Place a Soul Fish here.")));
+            return namedItem(
+                    Material.HOPPER,
+                    color("&eTurn In Fish"),
+                    List.of(color("&7Place a Soul Fish here."))
+            );
         }
 
         Material mat = Material.matchMaterial(sec.getString("material", "HOPPER"));
@@ -112,14 +141,18 @@ public class FishingJournalGUI {
         String rarityId = parts.length > 0 ? parts[0].toUpperCase(Locale.ROOT) : "UNKNOWN";
         String typeId = parts.length > 1 ? parts[1].toUpperCase(Locale.ROOT) : "UNKNOWN";
 
-        Material mat = Material.matchMaterial(cfg.getString("journal.undiscovered.material", "BLACK_STAINED_GLASS_PANE"));
-        if (mat == null) mat = Material.BLACK_STAINED_GLASS_PANE;
+        Material mat = Material.matchMaterial(
+                cfg.getString("journal.undiscovered.material", "RED_STAINED_GLASS_PANE")
+        );
+        if (mat == null) mat = Material.RED_STAINED_GLASS_PANE;
 
         String name = color(cfg.getString("journal.undiscovered.name", "&8???"));
 
         FishingRarity rarity = fishingConfig.rarities.get(rarityId);
         String rarityColor = rarity != null ? rarity.getColor() : "&7";
-        String rarityPretty = rarity != null ? stripColor(color(rarity.getDisplayName())) : rarityId;
+        String rarityPretty = rarity != null
+                ? stripColor(color(rarity.getDisplayName()))
+                : rarityId;
 
         String percent = String.format("%.4f", chance * 100.0);
 
@@ -129,6 +162,7 @@ public class FishingJournalGUI {
         lore.add(color("&7Chance: &f" + percent + "%"));
         lore.add("");
         lore.add(color("&8Turn in a fish to reveal."));
+
         return namedItem(mat, name, lore);
     }
 
@@ -140,8 +174,12 @@ public class FishingJournalGUI {
         FishType type = fishingConfig.fishTypes.get(typeId);
         FishingRarity rarity = fishingConfig.rarities.get(rarityId);
 
-        Material mat = (type != null && type.getMaterial() != null) ? type.getMaterial() : Material.COD;
+        Material mat = (type != null && type.getMaterial() != null)
+                ? type.getMaterial()
+                : Material.COD;
+
         String rarityColor = (rarity != null) ? rarity.getColor() : "&7";
+
         String displayFormat = (type != null && type.getDisplayFormat() != null)
                 ? type.getDisplayFormat()
                 : "{rarity_color}{weight}lb {type_name}";
@@ -160,23 +198,34 @@ public class FishingJournalGUI {
 
         meta.setDisplayName(color(name));
 
+        // Lore for journal:
+        // - remove "Right-click to add to journal"
+        // - remove ALL blank lines from base lore (we control spacing ourselves)
         List<String> lore = new ArrayList<>();
+
         for (String line : fishingConfig.loreLines) {
-            lore.add(color(
-                    line.replace("{rarity_color}", rarityColor)
-                            .replace("{rarity_name}", pretty(rarityId))
-                            .replace("{type_name}", pretty(typeId))
-                            .replace("{weight}", weightStr)
-            ));
+            String replaced = line
+                    .replace("{rarity_color}", rarityColor)
+                    .replace("{rarity_name}", pretty(rarityId))
+                    .replace("{type_name}", pretty(typeId))
+                    .replace("{weight}", weightStr);
+
+            String normalized = ChatColor.stripColor(color(replaced)).trim().toLowerCase(Locale.ROOT);
+
+            if (normalized.contains("right-click to add to journal")) continue;
+            if (normalized.isEmpty()) continue; // <-- key change: no blank lines from config in journal
+
+            lore.add(color(replaced));
         }
 
         String percent = String.format("%.4f", chance * 100.0);
 
+        // exactly ONE spacer before stats
         lore.add("");
         lore.add(color("&aBest recorded: &f" + weightStr + "lb"));
         lore.add(color("&7Chance: &f" + percent + "%"));
-        meta.setLore(lore);
 
+        meta.setLore(lore);
         item.setItemMeta(meta);
         return item;
     }
@@ -207,7 +256,9 @@ public class FishingJournalGUI {
         StringBuilder sb = new StringBuilder();
         for (String p : parts) {
             if (p.isEmpty()) continue;
-            sb.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1)).append(" ");
+            sb.append(Character.toUpperCase(p.charAt(0)))
+                    .append(p.substring(1))
+                    .append(" ");
         }
         return sb.toString().trim();
     }

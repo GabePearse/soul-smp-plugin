@@ -70,9 +70,14 @@ public class TeamUpkeepManager {
         }
 
         // Weeks owed, capped
-        int weeksOwed = (int) Math.min(maxWeeksBackpay, (days / 7L) + 1L);
+        int weeksOwed;
         if (days < 7) {
-            weeksOwed = 1; // First week
+            // No upkeep due yet
+            weeksOwed = 0;
+        } else {
+            // At least 1 week due once they've passed 7 days
+            weeksOwed = (int) Math.min(maxWeeksBackpay, (days / 7L));
+            if (weeksOwed < 1) weeksOwed = 1;
         }
         team.setUnpaidWeeks(weeksOwed);
 
@@ -223,8 +228,10 @@ public class TeamUpkeepManager {
         }
 
         int weeksOwed = team.getUnpaidWeeks();
-        if (weeksOwed <= 0) {
-            weeksOwed = 1;
+
+        if (weeksOwed == 0) {
+            player.sendMessage(ChatColor.RED + "You currently do not have an upkeep payment due.");
+            return;
         }
 
         int totalCost = weeklyCostBase * weeksOwed;

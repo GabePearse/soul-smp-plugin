@@ -1,7 +1,5 @@
 package me.Evil.soulSMP.fishing;
 
-import me.Evil.soulSMP.fishing.FishType;
-import me.Evil.soulSMP.fishing.FishingRarity;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -9,7 +7,8 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FishingConfig {
 
@@ -19,7 +18,7 @@ public class FishingConfig {
     public Map<String, FishingRarity> rarities = new HashMap<>();
     public Map<String, FishType> fishTypes = new HashMap<>();
 
-    public List<String> loreLines;
+    public java.util.List<String> loreLines;
 
     public FishingConfig(Plugin plugin) {
 
@@ -31,60 +30,53 @@ public class FishingConfig {
 
         // ---- Load Rarities ----
         ConfigurationSection rSec = cfg.getConfigurationSection("rarities");
-        for (String id : rSec.getKeys(false)) {
-            ConfigurationSection rs = rSec.getConfigurationSection(id);
-            rarities.put(id, new FishingRarity(
-                    id,
-                    rs.getString("display-name"),
-                    rs.getString("color"),
-                    rs.getDouble("weight"),
-                    rs.getDouble("score-multiplier")
-            ));
+        if (rSec != null) {
+            for (String id : rSec.getKeys(false)) {
+                ConfigurationSection rs = rSec.getConfigurationSection(id);
+                if (rs == null) continue;
+
+                ConfigurationSection wr = rs.getConfigurationSection("weight-range");
+                double minW = (wr != null) ? wr.getDouble("min", 1.0) : rs.getDouble("min-weight", 1.0);
+                double maxW = (wr != null) ? wr.getDouble("max", 1.0) : rs.getDouble("max-weight", 1.0);
+
+                rarities.put(id, new FishingRarity(
+                        id,
+                        rs.getString("display-name"),
+                        rs.getString("color"),
+                        rs.getDouble("weight"),
+                        rs.getDouble("score-multiplier"),
+                        minW,
+                        maxW
+                ));
+            }
         }
 
         // ---- Load Fish Types ----
         ConfigurationSection tSec = cfg.getConfigurationSection("fish-types");
-        for (String id : tSec.getKeys(false)) {
-            ConfigurationSection fs = tSec.getConfigurationSection(id);
+        if (tSec != null) {
+            for (String id : tSec.getKeys(false)) {
+                ConfigurationSection fs = tSec.getConfigurationSection(id);
+                if (fs == null) continue;
 
-            FishType type = new FishType(
-                    id,
-                    Material.matchMaterial(fs.getString("material", "COD")),
-                    fs.getString("display-name-format"),
-                    fs.getInt("base-score")
-            );
-
-            // Allowed rarities
-            for (String r : fs.getStringList("allowed-rarities")) {
-                if (rarities.containsKey(r)) type.getAllowedRarities().add(r);
-            }
-
-            // Weight ranges
-            ConfigurationSection wr = fs.getConfigurationSection("weight-ranges");
-            for (String rarity : wr.getKeys(false)) {
-                ConfigurationSection rs = wr.getConfigurationSection(rarity);
-                type.getRanges().put(rarity,
-                        new FishType.WeightRange(
-                                rs.getDouble("min"),
-                                rs.getDouble("max")
-                        )
+                FishType type = new FishType(
+                        id,
+                        Material.matchMaterial(fs.getString("material", "COD")),
+                        fs.getString("display-name-format"),
+                        fs.getInt("base-score")
                 );
-            }
 
-            fishTypes.put(id, type);
-        }
+                // global chance (how often this fish is picked vs others)
+                type.setChance(fs.getDouble("chance", 1.0));
 
-        // ---- Selection Weights ----
-        ConfigurationSection swSec = cfg.getConfigurationSection("selection-weights");
-        if (swSec != null) {
-            for (String typeId : swSec.getKeys(false)) {
-                FishType type = fishTypes.get(typeId);
-                if (type == null) continue;
-
-                ConfigurationSection entry = swSec.getConfigurationSection(typeId);
-                for (String rarityId : entry.getKeys(false)) {
-                    type.getSelectionWeights().put(rarityId, entry.getDouble(rarityId));
+                // optional per-fish rarity weights (if absent, generator uses global rarity weights)
+                ConfigurationSection rw = fs.getConfigurationSection("rarity-weights");
+                if (rw != null) {
+                    for (String rarityId : rw.getKeys(false)) {
+                        type.getRarityWeights().put(rarityId, rw.getDouble(rarityId));
+                    }
                 }
+
+                fishTypes.put(id, type);
             }
         }
 

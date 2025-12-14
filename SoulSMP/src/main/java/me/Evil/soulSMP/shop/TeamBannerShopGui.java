@@ -56,7 +56,7 @@ public class TeamBannerShopGui {
             // Make sure the team state is current
             upkeepManager.updateTeamUpkeep(team);
 
-            weeksOwed = Math.max(1, team.getUnpaidWeeks());
+            weeksOwed = Math.max(0, team.getUnpaidWeeks());
             status = team.getUpkeepStatus();
             totalCost = upkeepManager.getWeeklyCostBase() * weeksOwed;
             statusText = formatUpkeepStatus(status);
