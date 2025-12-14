@@ -15,11 +15,8 @@ import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.block.BlockFromToEvent;
-import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.block.BlockFace;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPistonExtendEvent;
@@ -522,7 +519,39 @@ public class BannerListener implements Listener {
         }
     }
 
+    // =========================================================
+    // FISHING – block fishing inside ANY team claim
+    // =========================================================
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerFishInClaim(PlayerFishEvent event) {
 
+        // Block early states so the hook doesn't persist
+        PlayerFishEvent.State state = event.getState();
+        if (!(state == PlayerFishEvent.State.FISHING
+                || state == PlayerFishEvent.State.BITE
+                || state == PlayerFishEvent.State.CAUGHT_FISH
+                || state == PlayerFishEvent.State.CAUGHT_ENTITY)) {
+            return;
+        }
+
+        if (event.getHook() == null) return;
+
+        Location hookLoc = event.getHook().getLocation();
+        if (hookLoc == null) return;
+
+        // Reuse your existing claim logic
+        Team claimTeam = getClaimingTeamAtLocation(hookLoc);
+        if (claimTeam == null) return;
+
+        // Block fishing in ANY claim (including own team)
+        event.setCancelled(true);
+
+        // IMPORTANT: remove hook so the cast is consumed
+        event.getHook().remove();
+
+        Player player = event.getPlayer();
+        player.sendMessage(ChatColor.RED + "You cannot fish inside a claimed area.");
+    }
 
     // =========================================================
     // Helpers

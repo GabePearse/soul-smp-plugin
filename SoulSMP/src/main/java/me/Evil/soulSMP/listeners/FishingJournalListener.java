@@ -38,7 +38,6 @@ public class FishingJournalListener implements Listener {
         this.journalManager = journalManager;
         this.gui = new FishingJournalGUI(journalManager, fishingConfig);
 
-        // Must match your generator keys
         this.fishTypeKey = new NamespacedKey(plugin, "fish_type");
         this.fishRarityKey = new NamespacedKey(plugin, "fish_rarity");
         this.fishWeightKey = new NamespacedKey(plugin, "fish_weight");
@@ -63,32 +62,60 @@ public class FishingJournalListener implements Listener {
 
     @EventHandler
     public void onJournalClick(InventoryClickEvent event) {
-        Inventory inv = event.getInventory();
-        if (!(inv.getHolder() instanceof FishingJournalHolder holder)) return;
-
-        event.setCancelled(true);
+        Inventory top = event.getView().getTopInventory();
+        if (!(top.getHolder() instanceof FishingJournalHolder holder)) return;
 
         Player player = (Player) event.getWhoClicked();
         UUID playerId = holder.getPlayerId();
         int page = holder.getPage();
         int pageCount = Math.max(1, journalManager.getPageCount());
 
+        Inventory clickedInv = event.getClickedInventory();
+        if (clickedInv == null) return;
+
+        boolean clickTop = clickedInv.equals(top);
+        boolean clickBottom = clickedInv.equals(event.getView().getBottomInventory());
+
         int raw = event.getRawSlot();
 
-        // Navigation
-        if (raw == prevSlot && page > 1) {
-            player.openInventory(gui.createFor(player, page - 1));
-            return;
-        }
-        if (raw == nextSlot && page < pageCount) {
-            player.openInventory(gui.createFor(player, page + 1));
+        // --- TOP (journal) inventory: block normal movement ---
+        if (clickTop) {
+            event.setCancelled(true);
+
+            // Navigation
+            if (raw == prevSlot && page > 1) {
+                player.openInventory(gui.createFor(player, page - 1));
+                return;
+            }
+            if (raw == nextSlot && page < pageCount) {
+                player.openInventory(gui.createFor(player, page + 1));
+                return;
+            }
+
+            // Deposit slot: consume from CURSOR (placing onto deposit)
+            if (raw == depositSlot) {
+                ItemStack cursor = event.getCursor();
+                handleDeposit(player, playerId, page, cursor, event);
+                return;
+            }
+
             return;
         }
 
-        // Deposit slot action
-        if (raw != depositSlot) return;
+        // --- BOTTOM (player inventory): allow normal clicks ---
+        // Support SHIFT-CLICK depositing a Soul Fish directly.
+        if (clickBottom) {
+            if (event.isShiftClick()) {
+                ItemStack current = event.getCurrentItem();
+                if (isSoulFish(current)) {
+                    event.setCancelled(true);
+                    handleShiftDeposit(player, playerId, page, current, event);
+                }
+            }
+        }
+    }
 
-        ItemStack cursor = event.getCursor();
+    private void handleDeposit(Player player, UUID playerId, int page, ItemStack cursor, InventoryClickEvent event) {
         if (!isSoulFish(cursor)) {
             player.sendMessage(ChatColor.RED + "Put a Soul Fish in the turn-in slot.");
             return;
@@ -102,11 +129,19 @@ public class FishingJournalListener implements Listener {
             return;
         }
 
-        // Must exist somewhere in journal pages
         FishingJournalManager.EntryDef def = journalManager.findEntry(entryKey);
         if (def == null) {
             player.sendMessage(ChatColor.RED + "That fish isn't registered in journal.yml yet: " + entryKey);
             return;
+        }
+
+        // NEW: only allow deposit if it improves (or is first discovery)
+        double oldBest = journalManager.getBestWeight(playerId, entryKey);
+        if (oldBest >= 0 && weight <= oldBest) {
+            player.sendMessage(ChatColor.YELLOW + "Not big enough. Best is "
+                    + String.format("%.1f", oldBest) + "lb. This one is "
+                    + String.format("%.1f", weight) + "lb.");
+            return; // DO NOT consume
         }
 
         // Consume ONE fish from cursor
@@ -118,19 +153,63 @@ public class FishingJournalListener implements Listener {
             event.setCursor(cursor);
         }
 
-        double oldBest = journalManager.getBestWeight(playerId, entryKey);
-        boolean improved = journalManager.updateBestWeight(playerId, entryKey, weight);
+        // Update journal (should now always improve)
+        journalManager.updateBestWeight(playerId, entryKey, weight);
 
         if (oldBest < 0) {
             player.sendMessage(ChatColor.GREEN + "Journal discovered: " + entryKey + " (" + String.format("%.1f", weight) + "lb)");
-        } else if (improved) {
+        } else {
             player.sendMessage(ChatColor.AQUA + "Journal upgraded: " + entryKey
                     + " (" + String.format("%.1f", oldBest) + "lb -> " + String.format("%.1f", weight) + "lb)");
-        } else {
-            player.sendMessage(ChatColor.YELLOW + "No upgrade. Best is still " + String.format("%.1f", oldBest) + "lb.");
         }
 
-        // Refresh current page
+        player.openInventory(gui.createFor(player, page));
+    }
+
+    private void handleShiftDeposit(Player player, UUID playerId, int page, ItemStack stack, InventoryClickEvent event) {
+
+        String entryKey = getEntryKey(stack);
+        Double weight = getFishWeight(stack);
+
+        if (entryKey == null || weight == null) {
+            player.sendMessage(ChatColor.RED + "That fish is missing journal data.");
+            return;
+        }
+
+        FishingJournalManager.EntryDef def = journalManager.findEntry(entryKey);
+        if (def == null) {
+            player.sendMessage(ChatColor.RED + "That fish isn't registered in journal.yml yet: " + entryKey);
+            return;
+        }
+
+        // NEW: only allow deposit if it improves (or is first discovery)
+        double oldBest = journalManager.getBestWeight(playerId, entryKey);
+        if (oldBest >= 0 && weight <= oldBest) {
+            player.sendMessage(ChatColor.YELLOW + "Not big enough. Best is "
+                    + String.format("%.1f", oldBest) + "lb. This one is "
+                    + String.format("%.1f", weight) + "lb.");
+            return; // DO NOT consume
+        }
+
+        // Consume ONE fish from the clicked stack
+        int amt = stack.getAmount();
+        if (amt <= 1) {
+            event.setCurrentItem(null);
+        } else {
+            stack.setAmount(amt - 1);
+            event.setCurrentItem(stack);
+        }
+
+        // Update journal
+        journalManager.updateBestWeight(playerId, entryKey, weight);
+
+        if (oldBest < 0) {
+            player.sendMessage(ChatColor.GREEN + "Journal discovered: " + entryKey + " (" + String.format("%.1f", weight) + "lb)");
+        } else {
+            player.sendMessage(ChatColor.AQUA + "Journal upgraded: " + entryKey
+                    + " (" + String.format("%.1f", oldBest) + "lb -> " + String.format("%.1f", weight) + "lb)");
+        }
+
         player.openInventory(gui.createFor(player, page));
     }
 

@@ -1,12 +1,14 @@
 package me.Evil.soulSMP;
 
 import me.Evil.soulSMP.chat.TeamChatManager;
+import me.Evil.soulSMP.commands.JournalCommand;
 import me.Evil.soulSMP.commands.SoulTokenCommand;
-import me.Evil.soulSMP.commands.TeamWhisperCommand;
 import me.Evil.soulSMP.commands.TeamCommand;
 import me.Evil.soulSMP.commands.TeamChatToggleCommand;
+import me.Evil.soulSMP.commands.TeamWhisperCommand;
 import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
+import me.Evil.soulSMP.fishing.journal.FishingJournalManager;
 import me.Evil.soulSMP.fishing.journal.JournalAutoGeneratorPaged;
 import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.shop.BannerShopSettings;
@@ -34,28 +36,15 @@ public class SoulSMP extends JavaPlugin {
     private CustomFishGenerator fishGenerator;
 
     // Journal system
-    private me.Evil.soulSMP.fishing.journal.FishingJournalManager fishingJournalManager;
-
+    private FishingJournalManager fishingJournalManager;
 
     private BannerShopSettings bannerShopSettings;
     private BeaconEffectSettings effectSettings;
     private DimensionBannerShopSettings dimensionBannerShopSettings;
 
-    // Aura + upkeep task IDs (so we can properly restart on reload)
+    // Task IDs
     private int auraTaskId = -1;
     private int upkeepTaskId = -1;
-
-    public BannerShopSettings getBannerShopSettings() {
-        return bannerShopSettings;
-    }
-
-    public BeaconEffectSettings getEffectSettings() {
-        return effectSettings;
-    }
-
-    public DimensionBannerShopSettings getDimensionBannerShopSettings() {
-        return dimensionBannerShopSettings;
-    }
 
     @Override
     public void onEnable() {
@@ -68,199 +57,215 @@ public class SoulSMP extends JavaPlugin {
         vaultManager = new TeamVaultManager(this, teamManager);
         tokenManager = new SoulTokenManager(this);
 
-        // Journal Manager
-        JournalAutoGeneratorPaged.generateIfMissing(this, fishingConfig);
-        fishingJournalManager = new me.Evil.soulSMP.fishing.journal.FishingJournalManager(this);
+        // ---------------------------
+        // FISHING + JOURNAL
+        // ---------------------------
+        fishingConfig = new FishingConfig(this);
 
-        // Daily upkeep manager
+        JournalAutoGeneratorPaged.regenerate(this, fishingConfig);
+        fishingJournalManager = new FishingJournalManager(this);
+
+        // ---------------------------
+        // OTHER MANAGERS
+        // ---------------------------
         upkeepManager = new TeamUpkeepManager(this, teamManager, tokenManager);
 
-        // Shop / effects settings
         bannerShopSettings = new BannerShopSettings(this);
         effectSettings = new BeaconEffectSettings(this);
         dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
-        // Load data
+        // ---------------------------
+        // LOAD DATA
+        // ---------------------------
         vaultManager.loadVaults();
-        teamManager.loadTeams();   // IMPORTANT: load BEFORE listeners register
+        teamManager.loadTeams();
 
-        // Load fishing configuration
-        fishingConfig = new FishingConfig(this);
-
-
-        // NBT keys for fish affix data (PersistentDataContainer)
+        // ---------------------------
+        // FISH NBT KEYS
+        // ---------------------------
         NamespacedKey fishTypeKey   = new NamespacedKey(this, "fish_type");
         NamespacedKey fishRarityKey = new NamespacedKey(this, "fish_rarity");
         NamespacedKey fishWeightKey = new NamespacedKey(this, "fish_weight");
         NamespacedKey fishScoreKey  = new NamespacedKey(this, "fish_score");
+        NamespacedKey fishChanceKey = new NamespacedKey(this, "fish_chance");
 
-        // Generator that handles: rarity roll, type roll, weight, score, item building
         fishGenerator = new CustomFishGenerator(
                 fishingConfig,
                 fishTypeKey,
                 fishRarityKey,
                 fishWeightKey,
-                fishScoreKey
+                fishScoreKey,
+                fishChanceKey
         );
 
         // ---------------------------
-        // REGISTER COMMANDS
+        // COMMANDS
         // ---------------------------
-
-        // SOULSMP MAIN COMMAND (/soulsmp)
         if (getCommand("soulsmp") != null) {
             var mainCmd = new me.Evil.soulSMP.commands.SoulSMPCommand(this);
             getCommand("soulsmp").setExecutor(mainCmd);
             getCommand("soulsmp").setTabCompleter(mainCmd);
-        } else {
-            getLogger().severe("Command 'soulsmp' not found in plugin.yml!");
         }
 
-        // TEAM COMMAND (/team, alias /t)
         if (getCommand("team") != null) {
             TeamCommand teamCommand = new TeamCommand(teamManager);
             getCommand("team").setExecutor(teamCommand);
             getCommand("team").setTabCompleter(teamCommand);
-        } else {
-            getLogger().severe("Command 'team' not found in plugin.yml!");
         }
 
-        // TEAM WHISPER COMMAND (/tw, /tmsg, etc.)
         if (getCommand("tw") != null) {
             getCommand("tw").setExecutor(new TeamWhisperCommand(teamManager));
-        } else {
-            getLogger().severe("Command 'tw' not found in plugin.yml!");
         }
 
-        // TEAM TOGGLE CHAT COMMAND (/tc)
         if (getCommand("tc") != null) {
             getCommand("tc").setExecutor(new TeamChatToggleCommand(teamManager, teamChatManager));
-        } else {
-            getLogger().severe("Command 'tc' not found in plugin.yml!");
         }
 
-        // SOUL TOKEN COMMAND (/token)
         if (getCommand("token") != null) {
             SoulTokenCommand tokenCmd = new SoulTokenCommand(tokenManager);
             getCommand("token").setExecutor(tokenCmd);
             getCommand("token").setTabCompleter(tokenCmd);
-        } else {
-            getLogger().severe("Command 'token' not found in plugin.yml!");
+        }
+
+        // JOURNAL COMMAND
+        if (getCommand("journal") != null) {
+            getCommand("journal").setExecutor(
+                    new JournalCommand(fishingJournalManager, fishingConfig)
+            );
         }
 
         // ---------------------------
-        // REGISTER LISTENERS
+        // LISTENERS
         // ---------------------------
-        getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
-        getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
-        getServer().getPluginManager().registerEvents(new EnderChestBlocker(), this);
-        getServer().getPluginManager().registerEvents(new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey), this);
-        getServer().getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig), this);
-        // ---------------------------
-        // SCHEDULED TASKS
-        // ---------------------------
+        Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
+        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
+        Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(
+                teamManager, tokenManager, bannerShopSettings, effectSettings,
+                dimensionBannerShopSettings, upkeepManager
+        ), this);
+        Bukkit.getPluginManager().registerEvents(new BeaconEffectsListener(
+                effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager
+        ), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+        Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
 
-        // Beacon aura ticking (every second)
+        // IMPORTANT: FishingListener must receive chanceKey now
+        Bukkit.getPluginManager().registerEvents(
+                new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey),
+                this
+        );
+
+        Bukkit.getPluginManager().registerEvents(
+                new FishingJournalListener(this, fishingJournalManager, fishingConfig),
+                this
+        );
+
+        // OPTIONAL: Remove this if you now broadcast inside FishingListener
+        // Bukkit.getPluginManager().registerEvents(new RareFishBroadcastListener(this), this);
+
+        // ---------------------------
+        // TASKS
+        // ---------------------------
         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-        auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L).getTaskId();
+        auraTaskId = Bukkit.getScheduler()
+                .runTaskTimer(this, aura::tick, 20L, 20L)
+                .getTaskId();
 
-        // Daily upkeep check (every 24h)
         long ticksPerDay = 20L * 60L * 60L * 24L;
-        upkeepTaskId = Bukkit.getScheduler().runTaskTimer(
-                this,
-                upkeepManager::runDailyCheck,
-                ticksPerDay,
-                ticksPerDay
-        ).getTaskId();
+        upkeepTaskId = Bukkit.getScheduler()
+                .runTaskTimer(this, upkeepManager::runDailyCheck, ticksPerDay, ticksPerDay)
+                .getTaskId();
 
         getLogger().info("SoulSMP enabled.");
     }
 
     @Override
     public void onDisable() {
-        // Save team data via TeamManager (it handles IO + exceptions)
-        if (teamManager != null) {
-            teamManager.saveTeams();
-        }
-
-        if (vaultManager != null) {
-            vaultManager.saveVaults();
-        }
-
+        if (teamManager != null) teamManager.saveTeams();
+        if (vaultManager != null) vaultManager.saveVaults();
         getLogger().info("SoulSMP disabled.");
     }
 
     public void reloadConfigs() {
-        // Recreate settings objects for shop.yml, dimension-shop.yml, and effects.yml
-        this.bannerShopSettings = new BannerShopSettings(this);
-        this.effectSettings     = new BeaconEffectSettings(this);
-        this.dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
-        this.fishingConfig = new FishingConfig(this);
-        JournalAutoGeneratorPaged.generateIfMissing(this, fishingConfig);
 
+        bannerShopSettings = new BannerShopSettings(this);
+        effectSettings = new BeaconEffectSettings(this);
+        dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
-        // Reload teams.yml and update existing team objects
-        if (teamManager != null) {
-            teamManager.reloadTeamsFromFile();
-        }
+        fishingConfig = new FishingConfig(this);
+        JournalAutoGeneratorPaged.regenerate(this, fishingConfig);
 
-        // Reload vaults.yml (clearing the old cache in TeamVaultManager)
-        if (vaultManager != null) {
-            vaultManager.loadVaults();
-        }
-
-        if (fishingJournalManager != null) {
-            fishingJournalManager.reload();
-        }
+        if (teamManager != null) teamManager.reloadTeamsFromFile();
+        if (vaultManager != null) vaultManager.loadVaults();
+        if (fishingJournalManager != null) fishingJournalManager.reload();
 
         NamespacedKey fishTypeKey   = new NamespacedKey(this, "fish_type");
         NamespacedKey fishRarityKey = new NamespacedKey(this, "fish_rarity");
         NamespacedKey fishWeightKey = new NamespacedKey(this, "fish_weight");
         NamespacedKey fishScoreKey  = new NamespacedKey(this, "fish_score");
+        NamespacedKey fishChanceKey = new NamespacedKey(this, "fish_chance");
 
-        this.fishGenerator = new CustomFishGenerator(
+        fishGenerator = new CustomFishGenerator(
                 fishingConfig,
                 fishTypeKey,
                 fishRarityKey,
                 fishWeightKey,
-                fishScoreKey
+                fishScoreKey,
+                fishChanceKey
         );
 
-        // Unregister listeners, re-register them, and restart tasks
         org.bukkit.event.HandlerList.unregisterAll(this);
 
-        getServer().getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        getServer().getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
-        getServer().getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        getServer().getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager), this);
-        getServer().getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
-        getServer().getPluginManager().registerEvents(new EnderChestBlocker(), this);
-        getServer().getPluginManager().registerEvents(new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey), this);
-        getServer().getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig), this);
+        Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
+        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
+        Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
+        Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(
+                teamManager, tokenManager, bannerShopSettings, effectSettings,
+                dimensionBannerShopSettings, upkeepManager
+        ), this);
+        Bukkit.getPluginManager().registerEvents(new BeaconEffectsListener(
+                effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager
+        ), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+        Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
 
+        // IMPORTANT: FishingListener must receive chanceKey now
+        Bukkit.getPluginManager().registerEvents(
+                new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey),
+                this
+        );
 
-        // Restart scheduled tasks
-        getServer().getScheduler().cancelTasks(this);
+        Bukkit.getPluginManager().registerEvents(
+                new FishingJournalListener(this, fishingJournalManager, fishingConfig),
+                this
+        );
+
+        // OPTIONAL: Remove this if you now broadcast inside FishingListener
+        // Bukkit.getPluginManager().registerEvents(new RareFishBroadcastListener(this), this);
+
+        // Rebind journal command with reloaded config
+        if (getCommand("journal") != null) {
+            getCommand("journal").setExecutor(
+                    new JournalCommand(fishingJournalManager, fishingConfig)
+            );
+        }
+
+        Bukkit.getScheduler().cancelTasks(this);
 
         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-        auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L).getTaskId();
+        auraTaskId = Bukkit.getScheduler()
+                .runTaskTimer(this, aura::tick, 20L, 20L)
+                .getTaskId();
 
         long ticksPerDay = 20L * 60L * 60L * 24L;
-        upkeepTaskId = Bukkit.getScheduler().runTaskTimer(
-                this,
-                upkeepManager::runDailyCheck,
-                ticksPerDay,
-                ticksPerDay
-        ).getTaskId();
+        upkeepTaskId = Bukkit.getScheduler()
+                .runTaskTimer(this, upkeepManager::runDailyCheck, ticksPerDay, ticksPerDay)
+                .getTaskId();
 
         getLogger().info("SoulSMP configuration files reloaded.");
     }

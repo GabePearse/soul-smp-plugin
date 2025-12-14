@@ -13,15 +13,13 @@ public class FishingJournalManager {
 
     private final Plugin plugin;
 
-    // journal.yml
     private File journalFile;
     private FileConfiguration journalCfg;
 
-    // fishing_journal_data.yml
     private File dataFile;
     private FileConfiguration dataCfg;
 
-    // page -> (entryKey -> EntryDef)
+    // GUI pageNumber (1..N) -> entries on that GUI page
     private final Map<Integer, Map<String, EntryDef>> pageEntries = new LinkedHashMap<>();
 
     public FishingJournalManager(Plugin plugin) {
@@ -40,22 +38,37 @@ public class FishingJournalManager {
         journalFile = new File(plugin.getDataFolder(), "journal.yml");
         if (!journalFile.exists()) {
             try {
+                // If you ship journal.yml as a resource, this will work.
                 plugin.saveResource("journal.yml", false);
-            } catch (IllegalArgumentException ex) {
-                try { //noinspection ResultOfMethodCallIgnored
+            } catch (IllegalArgumentException ignored) {
+                try {
+                    //noinspection ResultOfMethodCallIgnored
                     journalFile.createNewFile();
-                } catch (IOException ignored) {}
+                } catch (IOException e) {
+                    plugin.getLogger().severe("[SoulSMP] Could not create journal.yml: " + e.getMessage());
+                }
             }
         }
 
         journalCfg = YamlConfiguration.loadConfiguration(journalFile);
 
-        int pageCount = journalCfg.getInt("journal.pages.count", 1);
+        // Determine page count.
+        int explicitCount = journalCfg.getInt("journal.pages.count", -1);
+
+        // We'll load pages until no entries section exists for both schemas.
+        // If explicitCount is provided, use it; otherwise auto-detect.
+        int pageCount;
+        if (explicitCount > 0) {
+            pageCount = explicitCount;
+        } else {
+            pageCount = detectPageCount();
+        }
+
         if (pageCount < 1) pageCount = 1;
 
+        // Load pages 1..pageCount
         for (int page = 1; page <= pageCount; page++) {
-            String path = "journal.pages.page-" + page + ".entries";
-            ConfigurationSection entries = journalCfg.getConfigurationSection(path);
+            ConfigurationSection entries = getEntriesSectionForPage(page);
             if (entries == null) continue;
 
             Map<String, EntryDef> map = new LinkedHashMap<>();
@@ -70,10 +83,69 @@ public class FishingJournalManager {
 
                 map.put(key, new EntryDef(key, slot, chance));
             }
-            pageEntries.put(page, map);
+
+            if (!map.isEmpty()) {
+                pageEntries.put(page, map);
+            }
         }
 
-        plugin.getLogger().info("[SoulSMP] Journal loaded: pages=" + pageEntries.size());
+        plugin.getLogger().info("[SoulSMP] Journal loaded: pages=" + pageCount + ", pagesWithEntries=" + pageEntries.size());
+    }
+
+    /**
+     * Supports BOTH schemas:
+     *  - old: journal.pages.page-<n>.entries
+     *  - new: journal.pages.generated.page-<n>.entries
+     */
+    private ConfigurationSection getEntriesSectionForPage(int page) {
+        // Old schema
+        String oldPath = "journal.pages.page-" + page + ".entries";
+        ConfigurationSection oldSec = journalCfg.getConfigurationSection(oldPath);
+        if (oldSec != null) return oldSec;
+
+        // New schema (generated)
+        String genPath = "journal.pages.generated.page-" + page + ".entries";
+        return journalCfg.getConfigurationSection(genPath);
+    }
+
+    private int detectPageCount() {
+        int maxPage = 0;
+
+        // Old schema: journal.pages.page-#
+        ConfigurationSection pages = journalCfg.getConfigurationSection("journal.pages");
+        if (pages != null) {
+            for (String k : pages.getKeys(false)) {
+                if (k == null) continue;
+                if (k.toLowerCase(Locale.ROOT).startsWith("page-")) {
+                    int n = parsePageNumber(k);
+                    if (n > maxPage) maxPage = n;
+                }
+            }
+        }
+
+        // New schema: journal.pages.generated.page-#
+        ConfigurationSection gen = journalCfg.getConfigurationSection("journal.pages.generated");
+        if (gen != null) {
+            for (String k : gen.getKeys(false)) {
+                if (k == null) continue;
+                if (k.toLowerCase(Locale.ROOT).startsWith("page-")) {
+                    int n = parsePageNumber(k);
+                    if (n > maxPage) maxPage = n;
+                }
+            }
+        }
+
+        return Math.max(1, maxPage);
+    }
+
+    private int parsePageNumber(String key) {
+        // "page-12" -> 12
+        try {
+            String[] parts = key.split("-");
+            return Integer.parseInt(parts[1]);
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 
     private void loadDataFile() {
@@ -94,7 +166,8 @@ public class FishingJournalManager {
     }
 
     public int getPageCount() {
-        return journalCfg.getInt("journal.pages.count", 1);
+        int explicit = journalCfg.getInt("journal.pages.count", -1);
+        return explicit > 0 ? explicit : detectPageCount();
     }
 
     public Map<String, EntryDef> getEntriesForPage(int page) {
@@ -110,7 +183,6 @@ public class FishingJournalManager {
         return null;
     }
 
-    /** Returns best weight for this entry, or -1 if undiscovered. */
     public double getBestWeight(UUID playerId, String entryKey) {
         entryKey = normalizeKey(entryKey);
         String path = "players." + playerId + "." + entryKey;
@@ -118,10 +190,6 @@ public class FishingJournalManager {
         return dataCfg.getDouble(path, -1);
     }
 
-    /**
-     * Updates best weight if newWeight is higher.
-     * @return true if the entry is new or improved; false if not improved.
-     */
     public boolean updateBestWeight(UUID playerId, String entryKey, double newWeight) {
         entryKey = normalizeKey(entryKey);
         double current = getBestWeight(playerId, entryKey);

@@ -28,3 +28,7 @@ commands:
     usage: /soulsmp reload
     permission: soulsmp.admin
     aliases: [ ssmp ]
+  journal:
+    description: Opens the Fishing Journal
+    usage: /journal
+    aliases: [ fj, fishingjournal ]

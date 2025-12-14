@@ -1,8 +1,8 @@
 package me.Evil.soulSMP.fishing;
 
 import org.bukkit.Material;
-
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class FishType {
 
@@ -11,9 +11,9 @@ public class FishType {
     private final String displayFormat;
     private final int baseScore;
 
-    private final Set<String> allowedRarities = new HashSet<>();
-    private final Map<String, WeightRange> ranges = new HashMap<>();
-    private final Map<String, Double> selectionWeights = new HashMap<>();
+    // NEW
+    private double chance = 1.0;
+    private final Map<String, Double> rarityWeights = new HashMap<>();
 
     public FishType(String id, Material material, String displayFormat, int baseScore) {
         this.id = id;
@@ -27,15 +27,12 @@ public class FishType {
     public String getDisplayFormat() { return displayFormat; }
     public int getBaseScore() { return baseScore; }
 
-    public Set<String> getAllowedRarities() { return allowedRarities; }
-    public Map<String, WeightRange> getRanges() { return ranges; }
-    public Map<String, Double> getSelectionWeights() { return selectionWeights; }
+    // --- Fish spawn chance ---
+    public double getChance() { return chance; }
+    public void setChance(double chance) { this.chance = chance; }
 
-    public static class WeightRange {
-        public final double min, max;
-        public WeightRange(double min, double max) {
-            this.min = min;
-            this.max = max;
-        }
+    // --- Optional per-fish rarity weights ---
+    public Map<String, Double> getRarityWeights() {
+        return rarityWeights;
     }
 }
