@@ -12,6 +12,7 @@ import org.bukkit.plugin.Plugin;
 import java.io.File;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 public class SellEngine {
@@ -25,10 +26,8 @@ public class SellEngine {
     private final NamespacedKey fishScoreKey;
     private final NamespacedKey fishChanceKey;
 
-    // material rules: material -> (unit, payout)
     private final Map<Material, MaterialSellRule> materialRules = new HashMap<>();
 
-    // soul fish config
     private boolean soulFishEnabled;
     private boolean useScore;
     private double scoreMultiplier;
@@ -78,9 +77,14 @@ public class SellEngine {
             for (String matName : matSec.getKeys(false)) {
                 Material m = Material.matchMaterial(matName);
                 if (m == null) continue;
+
                 int unit = matSec.getInt(matName + ".unit", 1);
                 int payout = matSec.getInt(matName + ".payout", 0);
-                materialRules.put(m, new MaterialSellRule(m, unit, payout));
+
+                // NEW: slot (optional). If missing, default -1.
+                int slot = matSec.getInt(matName + ".slot", -1);
+
+                materialRules.put(m, new MaterialSellRule(m, unit, payout, slot));
             }
         }
 
@@ -88,25 +92,27 @@ public class SellEngine {
         useScore = cfg.getBoolean("soulfish.use-score", true);
         scoreMultiplier = cfg.getDouble("soulfish.score-multiplier", 0.35);
         flatBonus = cfg.getInt("soulfish.flat-bonus", 0);
-        minPayout = cfg.getInt("soulfish.min-payout", 1);
+        minPayout = cfg.getInt("soulfish.min-payout", 0);
 
         rarityMult.clear();
         var rSec = cfg.getConfigurationSection("soulfish.rarity-multipliers");
         if (rSec != null) {
             for (String rid : rSec.getKeys(false)) {
-                rarityMult.put(rid, rSec.getDouble(rid, 1.0));
+                // Normalize keys to avoid casing mismatches
+                rarityMult.put(rid.toLowerCase(Locale.ROOT), rSec.getDouble(rid, 1.0));
             }
         }
     }
 
     public int sellAll(Player player) {
         int totalPayout = 0;
+        boolean hadWorthlessFish = false;
 
-        // 1) materials
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             ItemStack it = player.getInventory().getItem(slot);
             if (it == null) continue;
 
+            // 1) materials
             MaterialSellRule rule = materialRules.get(it.getType());
             if (rule != null) {
                 int payout = rule.sellFromStack(player, slot, it);
@@ -114,17 +120,30 @@ public class SellEngine {
                 continue;
             }
 
-            // 2) soul fish
+            // 2) soul fish (always delete; payout may be 0)
             if (soulFishEnabled && isSoulFish(it)) {
                 int payout = computeFishPayout(it);
+
+                // Always remove the fish
+                player.getInventory().setItem(slot, null);
+
                 if (payout > 0) {
-                    player.getInventory().setItem(slot, null);
                     totalPayout += payout;
+                } else {
+                    hadWorthlessFish = true;
                 }
             }
         }
 
-        if (totalPayout > 0) tokenManager.giveTokens(player, totalPayout);
+        if (totalPayout > 0) {
+            tokenManager.giveTokens(player, totalPayout);
+        }
+
+        // Soft warning once
+        if (hadWorthlessFish) {
+            player.sendMessage("§7Some fish were too weak to yield any Soul Tokens.");
+        }
+
         return totalPayout;
     }
 
@@ -132,7 +151,6 @@ public class SellEngine {
         return Collections.unmodifiableMap(materialRules);
     }
 
-    /** Sells exactly one "unit" worth (e.g. 64 cobble) if the player has enough. */
     public int sellOneMaterialUnit(Player player, Material material) {
         MaterialSellRule rule = materialRules.get(material);
         if (rule == null) return 0;
@@ -144,14 +162,12 @@ public class SellEngine {
         int available = countMaterial(player, material);
         if (available < unit) return 0;
 
-        // remove exactly 'unit'
         removeMaterial(player, material, unit);
 
         tokenManager.giveTokens(player, payoutPerUnit);
         return payoutPerUnit;
     }
 
-    /** Sells as many full units as possible for that material. */
     public int sellAllMaterialUnits(Player player, Material material) {
         MaterialSellRule rule = materialRules.get(material);
         if (rule == null) return 0;
@@ -172,7 +188,6 @@ public class SellEngine {
         return total;
     }
 
-    /** Sells exactly one Soul Fish from inventory if present. */
     public int sellOneSoulFish(Player player) {
         if (!soulFishEnabled) return 0;
 
@@ -182,31 +197,56 @@ public class SellEngine {
 
             if (isSoulFish(it)) {
                 int payout = computeFishPayout(it);
+
+                // 🔥 Always remove the fish
                 player.getInventory().setItem(slot, null);
-                if (payout > 0) tokenManager.giveTokens(player, payout);
+
+                // 💰 Only pay if worth something
+                if (payout > 0) {
+                    tokenManager.giveTokens(player, payout);
+                } else {
+                    player.sendMessage("§7That fish was too weak to yield any Soul Tokens.");
+                }
+
                 return payout;
             }
         }
         return 0;
     }
 
-    /** Sells all Soul Fish in inventory. */
     public int sellAllSoulFish(Player player) {
         if (!soulFishEnabled) return 0;
 
         int total = 0;
+        boolean hadWorthless = false;
+
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             ItemStack it = player.getInventory().getItem(slot);
             if (it == null) continue;
 
             if (isSoulFish(it)) {
                 int payout = computeFishPayout(it);
+
+                // Always remove fish
                 player.getInventory().setItem(slot, null);
-                total += Math.max(0, payout);
+
+                if (payout > 0) {
+                    total += payout;
+                } else {
+                    hadWorthless = true;
+                }
             }
         }
 
-        if (total > 0) tokenManager.giveTokens(player, total);
+        if (total > 0) {
+            tokenManager.giveTokens(player, total);
+        }
+
+        // 🟡 Soft warning (once)
+        if (hadWorthless) {
+            player.sendMessage("§7Some fish were too weak to yield any Soul Tokens.");
+        }
+
         return total;
     }
 
@@ -241,7 +281,7 @@ public class SellEngine {
         }
     }
 
-    private boolean isSoulFish(ItemStack it) {
+    public boolean isSoulFish(ItemStack it) {
         if (it == null || !it.hasItemMeta()) return false;
         var pdc = it.getItemMeta().getPersistentDataContainer();
         return pdc.has(fishTypeKey, PersistentDataType.STRING)
@@ -249,7 +289,23 @@ public class SellEngine {
                 && pdc.has(fishScoreKey, PersistentDataType.DOUBLE);
     }
 
-    private int computeFishPayout(ItemStack it) {
+    /**
+     * Source-of-truth payout method.
+     * Use this everywhere (sell + visuals) so worth always matches.
+     */
+    public int computeFishPayout(double score, String rarityId) {
+        if (!soulFishEnabled) return 0;
+
+        String key = (rarityId == null) ? null : rarityId.toLowerCase(Locale.ROOT);
+
+        double base = useScore ? (score * scoreMultiplier) : 0.0;
+        double mult = (key != null) ? rarityMult.getOrDefault(key, 1.0) : 1.0;
+
+        int payout = (int) Math.floor((base * mult) + flatBonus);
+        return Math.max(minPayout, payout);
+    }
+
+    public int computeFishPayout(ItemStack it) {
         var meta = it.getItemMeta();
         if (meta == null) return 0;
 
@@ -258,11 +314,7 @@ public class SellEngine {
         String rarity = pdc.get(fishRarityKey, PersistentDataType.STRING);
 
         if (score == null) return 0;
-        double base = useScore ? (score * scoreMultiplier) : 0.0;
-        double mult = (rarity != null) ? rarityMult.getOrDefault(rarity, 1.0) : 1.0;
-
-        int payout = (int) Math.floor((base * mult) + flatBonus);
-        return Math.max(minPayout, payout);
+        return computeFishPayout(score, rarity);
     }
 
     public String getSellTitle() { return sellTitle; }

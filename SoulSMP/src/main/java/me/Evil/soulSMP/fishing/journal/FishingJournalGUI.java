@@ -64,17 +64,43 @@ public class FishingJournalGUI {
         // navigation buttons
         setNavButtons(inv, cfg, page, pageCount);
 
+        UUID uuid = player.getUniqueId();
+
         // page entries
         for (FishingJournalManager.EntryDef def : manager.getEntriesForPage(page).values()) {
-            double best = manager.getBestWeight(player.getUniqueId(), def.key);
+            String entryKey = def.key;
+
+            // Parse rarity:type from key so we can apply "row discovery" logic.
+            String[] parts = entryKey.split(":");
+            String rarityId = parts.length > 0 ? parts[0].toUpperCase(Locale.ROOT) : "UNKNOWN";
+            String typeId = parts.length > 1 ? parts[1].toUpperCase(Locale.ROOT) : "UNKNOWN";
+
+            double best = manager.getBestWeight(uuid, entryKey);
+
             if (best < 0) {
-                inv.setItem(def.slot, buildUndiscoveredForEntry(cfg, def.key, def.chance));
+                // If they've discovered ANY rarity for this fish type, show the type name for ALL entries in that type row.
+                boolean typeDiscovered = hasDiscoveredType(uuid, typeId);
+                inv.setItem(def.slot, buildUndiscoveredForEntry(cfg, rarityId, typeId, def.chance, typeDiscovered));
             } else {
-                inv.setItem(def.slot, buildDiscoveredFish(def.key, best, def.chance));
+                inv.setItem(def.slot, buildDiscoveredFish(entryKey, best, def.chance));
             }
         }
 
         return inv;
+    }
+
+    /**
+     * Returns true if the player has discovered at least one fish for this type across any rarity.
+     * This is what makes "SARDINE" appear on all undiscovered entries in the sardine row once any sardine is discovered.
+     */
+    private boolean hasDiscoveredType(UUID uuid, String typeId) {
+        if (typeId == null || typeId.isEmpty()) return false;
+
+        for (String rarityId : fishingConfig.rarities.keySet()) {
+            String key = rarityId.toUpperCase(Locale.ROOT) + ":" + typeId.toUpperCase(Locale.ROOT);
+            if (manager.getBestWeight(uuid, key) >= 0) return true;
+        }
+        return false;
     }
 
     private void setNavButtons(Inventory inv, FileConfiguration cfg, int page, int pageCount) {
@@ -136,10 +162,16 @@ public class FishingJournalGUI {
         return namedItem(mat, name, lore);
     }
 
-    private ItemStack buildUndiscoveredForEntry(FileConfiguration cfg, String entryKey, double chance) {
-        String[] parts = entryKey.split(":");
-        String rarityId = parts.length > 0 ? parts[0].toUpperCase(Locale.ROOT) : "UNKNOWN";
-        String typeId = parts.length > 1 ? parts[1].toUpperCase(Locale.ROOT) : "UNKNOWN";
+    /**
+     * Undiscovered entry:
+     * - If typeDiscovered == false => show Type: ???
+     * - If typeDiscovered == true  => show the real Type name (e.g., Sardine) for all entries in that row
+     */
+    private ItemStack buildUndiscoveredForEntry(FileConfiguration cfg,
+                                                String rarityId,
+                                                String typeId,
+                                                double chance,
+                                                boolean typeDiscovered) {
 
         Material mat = Material.matchMaterial(
                 cfg.getString("journal.undiscovered.material", "RED_STAINED_GLASS_PANE")
@@ -156,8 +188,12 @@ public class FishingJournalGUI {
 
         String percent = String.format("%.4f", chance * 100.0);
 
+        String typeLine = typeDiscovered
+                ? color("&7Type: &f" + pretty(typeId))
+                : color("&7Type: &8???");
+
         List<String> lore = new ArrayList<>();
-        lore.add(color("&7Type: &f" + pretty(typeId)));
+        lore.add(typeLine);
         lore.add(color("&7Rarity: " + rarityColor + rarityPretty));
         lore.add(color("&7Chance: &f" + percent + "%"));
         lore.add("");
@@ -213,14 +249,13 @@ public class FishingJournalGUI {
             String normalized = ChatColor.stripColor(color(replaced)).trim().toLowerCase(Locale.ROOT);
 
             if (normalized.contains("right-click to add to journal")) continue;
-            if (normalized.isEmpty()) continue; // <-- key change: no blank lines from config in journal
+            if (normalized.isEmpty()) continue;
 
             lore.add(color(replaced));
         }
 
         String percent = String.format("%.4f", chance * 100.0);
 
-        // exactly ONE spacer before stats
         lore.add("");
         lore.add(color("&aBest recorded: &f" + weightStr + "lb"));
         lore.add(color("&7Chance: &f" + percent + "%"));

@@ -42,49 +42,406 @@ category-gui:
 buy:
   blocks:
     items:
+      # ===== Row 1 (10–16) — Core terrain & starter saplings =====
       stone:
         slot: 10
         price: 2
-        give:
-          material: STONE
-          amount: 64
-          # vanilla item given (no meta tag)
+        give: { material: STONE, amount: 64 }
 
-      oak_logs:
+      cobbled_deepslate:
         slot: 11
-        price: 3
-        give:
-          material: OAK_LOG
-          amount: 32
-          # vanilla item given (no meta tag)
+        price: 4
+        give: { material: COBBLED_DEEPSLATE, amount: 64 }
+
+      grass_block:
+        slot: 12
+        price: 4
+        give: { material: GRASS_BLOCK, amount: 64 }
+
+      moss_block:
+        slot: 13
+        price: 6
+        give: { material: MOSS_BLOCK, amount: 64 }
+
+      terracotta:
+        slot: 14
+        price: 6
+        give: { material: TERRACOTTA, amount: 64 }
+
+      sand:
+        slot: 15
+        price: 6
+        give: { material: SAND, amount: 64 }
+
+      packed_ice:
+        slot: 16
+        price: 12
+        give: { material: PACKED_ICE, amount: 64 }
+
+      oak_sapling:
+        slot: 19
+        price: 2
+        give: { material: OAK_SAPLING, amount: 1 }
+
+      spruce_sapling:
+        slot: 20
+        price: 2
+        give: { material: SPRUCE_SAPLING, amount: 1 }
+
+      birch_sapling:
+        slot: 21
+        price: 2
+        give: { material: BIRCH_SAPLING, amount: 1 }
+
+      cherry_sapling:
+        slot: 22
+        price: 2
+        give: { material: CHERRY_SAPLING, amount: 1 }
+
+      jungle_sapling:
+        slot: 23
+        price: 2
+        give: { material: JUNGLE_SAPLING, amount: 1 }
+
+      acacia_sapling:
+        slot: 24
+        price: 2
+        give: { material: ACACIA_SAPLING, amount: 1 }
+
+      dark_oak_sapling:
+        slot: 25
+        price: 6
+        give: { material: DARK_OAK_SAPLING, amount: 4 }
+
+      soul_sand:
+        slot: 28
+        price: 12
+        give: { material: SOUL_SAND, amount: 64 }
+
+      basalt:
+        slot: 29
+        price: 16
+        give: { material: BASALT, amount: 64 }
+
+      blackstone:
+        slot: 30
+        price: 16
+        give: { material: BLACKSTONE, amount: 64 }
+
+      end_stone:
+        slot: 31
+        price: 16
+        give: { material: END_STONE, amount: 64 }
+
+      prismarine:
+        slot: 32
+        price: 20
+        give: { material: PRISMARINE, amount: 32 }
+
+      glowstone:
+        slot: 33
+        price: 20
+        give: { material: GLOWSTONE, amount: 32 }
+
+      sea_lantern:
+        slot: 34
+        price: 24
+        give: { material: SEA_LANTERN, amount: 16 }
+
+      slime_block:
+        slot: 39
+        price: 32
+        give: { material: SLIME_BLOCK, amount: 16 }
+
+      obsidian:
+        slot: 40
+        price: 32
+        give: { material: OBSIDIAN, amount: 16 }
+
+      sponge:
+        slot: 41
+        price: 32
+        give: { material: SPONGE, amount: 8 }
+
+
 
   combat:
     items:
-      diamond_chest:
+
+      # ===== MOBILITY / PROGRESSION (NON-FARMABLE) =====
+      elytra:
+        slot: 20
+        price: 250
+        give:
+          material: ELYTRA
+          amount: 1
+          meta: false
+          name: "&dElytra"
+
+      trident:
+        slot: 11
+        price: 160
+        give:
+          material: TRIDENT
+          amount: 1
+          meta: false
+          name: "&bTrident"
+
+      conduit:
+        slot: 29
+        price: 140
+        give:
+          material: CONDUIT
+          amount: 1
+          meta: false
+          name: "&3Conduit"
+
+      # ===== IMPOSSIBLE ARMOR (STRONG BUT NOT “GOD”) =====
+      prot5_helmet:
         slot: 10
-        price: 40
+        price: 120
+        give:
+          material: DIAMOND_HELMET
+          amount: 1
+          meta: true
+          name: "&b&lProto Helm"
+          lore:
+            - "&cReinforced beyond survival limits."
+          enchants:
+            - "minecraft:protection:5"
+            - "minecraft:unbreaking:3"
+
+      prot5_chestplate:
+        slot: 19
+        price: 160
         give:
           material: DIAMOND_CHESTPLATE
           amount: 1
           meta: true
-          name: "&bDiamond Chestplate"
+          name: "&b&lProto Chest"
           lore:
-            - "&7Cost: &b{price} &7Soul Tokens"
-          unbreakable: true
+            - "&cReinforced beyond survival limits."
           enchants:
-            - "minecraft:protection:4"
+            - "minecraft:protection:5"
             - "minecraft:unbreaking:3"
 
-      custom_enchant_book:
-        slot: 13
-        price: 75
+      prot5_leggings:
+        slot: 28
+        price: 140
+        give:
+          material: DIAMOND_LEGGINGS
+          amount: 1
+          meta: true
+          name: "&b&lProto Legs"
+          lore:
+            - "&cReinforced beyond survival limits."
+          enchants:
+            - "minecraft:protection:5"
+            - "minecraft:unbreaking:3"
+
+      prot5_boots:
+        slot: 37
+        price: 120
+        give:
+          material: DIAMOND_BOOTS
+          amount: 1
+          meta: true
+          name: "&b&lProto Boots"
+          lore:
+            - "&cReinforced beyond survival limits."
+          enchants:
+            - "minecraft:protection:5"
+            - "minecraft:unbreaking:3"
+
+
+      # ===== IMPOSSIBLE WEAPONS / TOOLS =====
+      sharp6_sword:
+        slot: 12
+        price: 150
+        give:
+          material: DIAMOND_SWORD
+          amount: 1
+          meta: true
+          name: "&cVoidedge Blade"
+          lore:
+            - "&cForged to cut deeper than survival steel."
+          enchants:
+            - "minecraft:sharpness:6"
+            - "minecraft:unbreaking:3"
+
+      power6_bow:
+        slot: 21
+        price: 145
+        give:
+          material: BOW
+          amount: 1
+          meta: true
+          name: "&6Stormstring Bow"
+          lore:
+            - "&cDrawn with impossible force."
+          enchants:
+            - "minecraft:power:6"
+            - "minecraft:unbreaking:3"
+
+      eff7_pickaxe:
+        slot: 30
+        price: 135
+        give:
+          material: DIAMOND_PICKAXE
+          amount: 1
+          meta: true
+          name: "&eEarthsplitter Pick"
+          lore:
+            - "&cCarves stone like air."
+          enchants:
+            - "minecraft:efficiency:10"
+            - "minecraft:unbreaking:3"
+
+      eff6_axe:
+        slot: 39
+        price: 125
+        give:
+          material: DIAMOND_AXE
+          amount: 1
+          meta: true
+          name: "&eTimberbane Axe"
+          lore:
+            - "&cFells giants with a flick."
+          enchants:
+            - "minecraft:efficiency:6"
+            - "minecraft:unbreaking:3"
+
+
+      # ===== IMPOSSIBLE BOOKS (COMMODITY / EVENT REWARD) =====
+      book_prot5:
+        slot: 14
+        price: 110
         give:
           material: ENCHANTED_BOOK
           amount: 1
           meta: true
-          name: "&dSoulbound Tome"
+          name: "&dTome of Aegis V"
           lore:
-            - "&7Contains forbidden power..."
-            - "&7Cost: &b{price} &7Soul Tokens"
+            - "&cAn enchantment not meant for mortals."
           enchants:
-            - "minecraft:luck_of_the_sea:4"
+            - "minecraft:protection:5"
+
+      book_sharp6:
+        slot: 23
+        price: 115
+        give:
+          material: ENCHANTED_BOOK
+          amount: 1
+          meta: true
+          name: "&dTome of Ruin VI"
+          lore:
+            - "&cAn enchantment not meant for mortals."
+          enchants:
+            - "minecraft:sharpness:6"
+
+      book_power6:
+        slot: 32
+        price: 115
+        give:
+          material: ENCHANTED_BOOK
+          amount: 1
+          meta: true
+          name: "&dTome of Tempest VI"
+          lore:
+            - "&cAn enchantment not meant for mortals."
+          enchants:
+            - "minecraft:power:6"
+
+      book_eff6:
+        slot: 41
+        price: 105
+        give:
+          material: ENCHANTED_BOOK
+          amount: 1
+          meta: true
+          name: "&dTome of Industry VI"
+          lore:
+            - "&cAn enchantment not meant for mortals."
+          enchants:
+            - "minecraft:efficiency:6"
+
+      random_plus_one_book:
+        slot: 38
+        price: 85
+        give:
+          material: ENCHANTED_BOOK
+          amount: 1
+          meta: true
+          name: "&dRandom +1 Enchanted Book"
+          lore:
+            - "&f• &7Random enchant at &a+1 &7above max"
+            - ""
+            - "&4THIS ENCHANTMENT COULD BE COMPLETELY USELESS"
+
+
+      # ===== ARMOR TRIM TEMPLATES (RARE COMMODITY) =====
+      trim_silence:
+        slot: 15
+        price: 120
+        give:
+          material: SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE
+          amount: 1
+          meta: false
+
+      trim_ward:
+        slot: 24
+        price: 90
+        give:
+          material: WARD_ARMOR_TRIM_SMITHING_TEMPLATE
+          amount: 1
+          meta: false
+
+      trim_tide:
+        slot: 33
+        price: 85
+        give:
+          material: TIDE_ARMOR_TRIM_SMITHING_TEMPLATE
+          amount: 1
+          meta: false
+
+      trim_sentry:
+        slot: 42
+        price: 65
+        give:
+          material: SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE
+          amount: 1
+          meta: false
+
+
+      # ===== BANNER PATTERNS (COMMODITY) =====
+      banner_mojang:
+        slot: 16
+        price: 60
+        give:
+          material: MOJANG_BANNER_PATTERN
+          amount: 1
+          meta: false
+
+      banner_piglin:
+        slot: 25
+        price: 55
+        give:
+          material: PIGLIN_BANNER_PATTERN
+          amount: 1
+          meta: false
+
+      banner_globe:
+        slot: 34
+        price: 45
+        give:
+          material: GLOBE_BANNER_PATTERN
+          amount: 1
+          meta: false
+
+      banner_creeper:
+        slot: 43
+        price: 40
+        give:
+          material: CREEPER_BANNER_PATTERN
+          amount: 1
+          meta: false

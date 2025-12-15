@@ -3,6 +3,7 @@ package me.Evil.soulSMP.listeners;
 import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.FishingRarity;
+import me.Evil.soulSMP.store.sell.SellEngine;
 import me.Evil.soulSMP.util.GiveOrDrop;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -18,12 +19,15 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class FishingListener implements Listener {
 
     private final FishingConfig cfg;
     private final CustomFishGenerator generator;
+    private final SellEngine sellEngine;
 
     private final NamespacedKey typeKey;
     private final NamespacedKey rarityKey;
@@ -32,12 +36,14 @@ public class FishingListener implements Listener {
 
     public FishingListener(FishingConfig cfg,
                            CustomFishGenerator generator,
+                           SellEngine sellEngine,
                            NamespacedKey typeKey,
                            NamespacedKey rarityKey,
                            NamespacedKey weightKey,
                            NamespacedKey chanceKey) {
         this.cfg = cfg;
         this.generator = generator;
+        this.sellEngine = sellEngine;
         this.typeKey = typeKey;
         this.rarityKey = rarityKey;
         this.weightKey = weightKey;
@@ -71,6 +77,9 @@ public class FishingListener implements Listener {
         ItemStack fish = generator.generateFish(luck);
         if (fish == null) return;
 
+        // ✅ Add worth lore that matches the exact sell payout
+        applyWorthLore(fish);
+
         // Give fish to player
         GiveOrDrop.give(player, fish);
 
@@ -78,28 +87,70 @@ public class FishingListener implements Listener {
         announceIfUltraRare(player, fish);
     }
 
+    private void applyWorthLore(ItemStack fish) {
+        if (sellEngine == null) return;
+
+        int worth = sellEngine.computeFishPayout(fish);
+        if (worth <= 0) return;
+
+        ItemMeta meta = fish.getItemMeta();
+        if (meta == null) return;
+
+        List<String> lore = meta.getLore();
+        if (lore == null) lore = new ArrayList<>();
+
+        // remove existing Worth line to avoid duplicates
+        lore.removeIf(line ->
+                ChatColor.stripColor(line)
+                        .toLowerCase(Locale.ROOT)
+                        .startsWith("worth:")
+        );
+
+        lore.add("");
+        lore.add(ChatColor.translateAlternateColorCodes('&',
+                "&bWorth: &f" + worth + " &7Soul Tokens"
+        ));
+
+        meta.setLore(lore);
+        fish.setItemMeta(meta);
+    }
+
     private void announceIfUltraRare(Player player, ItemStack fish) {
         ItemMeta meta = fish.getItemMeta();
         if (meta == null) return;
 
-        PersistentDataContainer pdc = meta.getPersistentDataContainer();
+        var pdc = meta.getPersistentDataContainer();
 
         Double chance = pdc.get(chanceKey, PersistentDataType.DOUBLE);
-        if (chance == null || chance >= 0.01) return; // only < 1%
-
         String rarityId = pdc.get(rarityKey, PersistentDataType.STRING);
-        String rarityColor = "&e"; // fallback
+        if (chance == null || rarityId == null) return;
 
-        if (rarityId != null) {
-            FishingRarity rarity = cfg.rarities.get(rarityId.toUpperCase(Locale.ROOT));
-            if (rarity != null) rarityColor = rarity.getColor();
+        // ✅ Only announce these
+        boolean ultraRare =
+                rarityId.equalsIgnoreCase("MYTHIC") ||
+                        rarityId.equalsIgnoreCase("DIVINE");
+
+        if (!ultraRare) return;
+
+        // ✅ Lookup rarity (try exact first, then case-insensitive fallback)
+        FishingRarity rarity = cfg.rarities.get(rarityId);
+        if (rarity == null) {
+            for (FishingRarity r : cfg.rarities.values()) {
+                if (r.getId().equalsIgnoreCase(rarityId)) {
+                    rarity = r;
+                    break;
+                }
+            }
         }
+        if (rarity == null) return;
+
+        String rarityColor = rarity.getColor();
 
         String display = meta.hasDisplayName()
                 ? ChatColor.stripColor(meta.getDisplayName())
                 : fish.getType().name().toLowerCase(Locale.ROOT).replace("_", " ");
 
-        String percent = String.format("%.4f", chance * 100.0);
+        String percent = String.format(Locale.US, "%.4f", chance * 100.0);
 
         String message = ChatColor.translateAlternateColorCodes('&',
                 "&b[Fish] &f" + player.getName()
@@ -110,4 +161,5 @@ public class FishingListener implements Listener {
 
         Bukkit.broadcastMessage(message);
     }
+
 }

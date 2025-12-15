@@ -1,8 +1,8 @@
 package me.Evil.soulSMP.store.gui;
 
 import me.Evil.soulSMP.store.StoreManager;
-import me.Evil.soulSMP.store.sell.SellHolder;
 import me.Evil.soulSMP.store.sell.MaterialSellRule;
+import me.Evil.soulSMP.store.sell.SellHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -20,71 +20,117 @@ public class SellGui {
 
         SellHolder holder = new SellHolder(manager);
         holder.setBackSlot(sell.getBackSlot());
-        holder.setFishSlot(22);
+        holder.setFishSlot(50);
+        holder.setSellAllSlot(48);
+
+        // ✅ Capitalize first visible letter of title (safe with color codes)
+        String rawTitle = sell.getSellTitle();
+        String title = capitalizeFirstVisible(rawTitle);
 
         Inventory inv = Bukkit.createInventory(
                 holder,
                 sell.getSellSize(),
-                color(sell.getSellTitle())
+                color(title)
         );
         holder.setInventory(inv);
 
-        // filler
-        ItemStack filler = new ItemStack(sell.getFillerMat());
-        ItemMeta fm = filler.getItemMeta();
-        if (fm != null) {
-            fm.setDisplayName(color(sell.getFillerName()));
-            filler.setItemMeta(fm);
-        }
-        for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, filler);
+        // ----------------------------
+        // 1) Place buttons/items FIRST
+        // ----------------------------
 
-        // Place Soul Fish sell button
+        // Sell All button
+        inv.setItem(holder.getSellAllSlot(), make(
+                Material.HOPPER,
+                "&aSell All",
+                List.of("&7Left-Click: sell &feverything sellable")
+        ));
+
+        // Soul Fish button
         inv.setItem(holder.getFishSlot(), make(
                 Material.FISHING_ROD,
                 "&bSell Soul Fish",
                 List.of(
-                        "&7Left click: sell &f1 &7Soul Fish",
-                        "&7Shift-left click: sell &fall &7Soul Fish"
+                        "&7Left-Click: Sell &f1 &7Soul Fish",
+                        "&7Shift-Left-Click: Sell &fall &7Soul Fish"
                 )
         ));
 
-        // Place material sell buttons
-        // Layout slots: 10-16, 19-25, 28-34 (nice 3 rows)
-        List<Integer> slots = new ArrayList<>();
-        for (int s : new int[]{10,11,12,13,14,15,16, 19,20,21,22,23,24,25, 28,29,30,31,32,33,34}) slots.add(s);
+        // Back button
+        inv.setItem(holder.getBackSlot(), make(
+                Material.ARROW,
+                "&cBack",
+                List.of("&7Return to store menu.")
+        ));
 
-        // Avoid clobbering fish slot if it overlaps
-        slots.remove((Integer) holder.getFishSlot());
+        // Material buttons (slot required)
+        Set<Integer> reserved = Set.of(
+                holder.getFishSlot(),
+                holder.getSellAllSlot(),
+                holder.getBackSlot()
+        );
 
-        // Stable order by material name
+        Set<Integer> used = new HashSet<>(reserved);
+
         List<MaterialSellRule> rules = new ArrayList<>(sell.getMaterialRules().values());
-        rules.sort(Comparator.comparing(r -> r.material.name()));
+        rules.sort(Comparator
+                .comparingInt((MaterialSellRule r) -> r.slot)
+                .thenComparing(r -> r.material.name())
+        );
 
-        int idx = 0;
         for (MaterialSellRule rule : rules) {
-            if (idx >= slots.size()) break;
-            int slot = slots.get(idx++);
+            int slot = rule.slot;
 
-            int unit = rule.unit;
-            int payout = rule.payout;
+            if (slot < 0) {
+                Bukkit.getLogger().warning("[SellGui] Missing slot for material " + rule.material + " in store-sell.yml (materials." + rule.material.name() + ".slot)");
+                continue;
+            }
+
+            if (slot >= inv.getSize()) {
+                Bukkit.getLogger().warning("[SellGui] Slot " + slot + " out of bounds for material " + rule.material + " (inv size " + inv.getSize() + ")");
+                continue;
+            }
+
+            if (reserved.contains(slot)) {
+                Bukkit.getLogger().warning("[SellGui] Slot " + slot + " for material " + rule.material + " conflicts with reserved slot.");
+                continue;
+            }
+
+            if (!used.add(slot)) {
+                Bukkit.getLogger().warning("[SellGui] Duplicate slot " + slot + " already used; skipping material " + rule.material);
+                continue;
+            }
 
             inv.setItem(slot, make(
                     rule.material,
                     "&aSell " + pretty(rule.material),
                     List.of(
-                            "&7Unit: &f" + unit,
-                            "&7Payout per unit: &b" + payout + " &7Soul Tokens",
+                            "&7Unit: &f" + formatUnit(rule.unit),
+                            "&7Payout per unit: &b" + rule.payout + " &7Soul Tokens",
                             "",
-                            "&7Left click: sell &f1 unit",
-                            "&7Shift-left click: sell &fall units"
+                            "&7Left-Click: Sell &f1 unit",
+                            "&7Shift-Left-Click: Sell &fall units"
                     )
             ));
 
             holder.bindMaterialSlot(slot, rule.material);
         }
 
-        // Back button
-        inv.setItem(sell.getBackSlot(), make(Material.BARRIER, "&cBack", List.of("&7Return to store menu.")));
+        // ----------------------------
+        // 2) Fill ONLY EMPTY slots LAST
+        // ----------------------------
+        ItemStack filler = new ItemStack(sell.getFillerMat());
+        ItemMeta fm = filler.getItemMeta();
+        if (fm != null) {
+            fm.setDisplayName(color(sell.getFillerName()));
+            filler.setItemMeta(fm);
+        }
+
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack existing = inv.getItem(i);
+            if (existing == null || existing.getType() == Material.AIR) {
+                inv.setItem(i, filler);
+            }
+        }
 
         player.openInventory(inv);
     }
@@ -100,16 +146,44 @@ public class SellGui {
         return item;
     }
 
+    private static String formatUnit(int unit) {
+        if (unit <= 0) return "0";
+
+        if (unit % 64 == 0) {
+            int stacks = unit / 64;
+            return stacks + " stack" + (stacks == 1 ? "" : "s") + " &7(64×" + stacks + ")";
+        }
+
+        return unit + " items";
+    }
+
+
     private static String color(String s) {
         return ChatColor.translateAlternateColorCodes('&', s == null ? "" : s);
+    }
+
+    // ✅ Capitalizes first visible character (ignores & color codes)
+    private static String capitalizeFirstVisible(String s) {
+        if (s == null || s.isEmpty()) return s;
+
+        char[] chars = s.toCharArray();
+        for (int i = 0; i < chars.length; i++) {
+            if (chars[i] == '&' && i + 1 < chars.length) {
+                i++;
+                continue;
+            }
+            chars[i] = Character.toUpperCase(chars[i]);
+            break;
+        }
+        return new String(chars);
     }
 
     private static String pretty(Material m) {
         String[] parts = m.name().toLowerCase(Locale.US).split("_");
         StringBuilder sb = new StringBuilder();
         for (String p : parts) {
-            if (p.isEmpty()) continue;
-            sb.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1)).append(" ");
+            if (!p.isEmpty())
+                sb.append(Character.toUpperCase(p.charAt(0))).append(p.substring(1)).append(" ");
         }
         return sb.toString().trim();
     }

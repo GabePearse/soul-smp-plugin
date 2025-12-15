@@ -12,8 +12,10 @@ public class SellHolder implements InventoryHolder {
 
     private final StoreManager manager;
     private final Map<Integer, Material> materialBySlot = new HashMap<>();
+
     private int backSlot = 49;
-    private int fishSlot = 22;
+    private int fishSlot = 50;
+    private int sellAllSlot = 48;
 
     private Inventory inv;
 
@@ -47,6 +49,14 @@ public class SellHolder implements InventoryHolder {
 
     public void setFishSlot(int fishSlot) {
         this.fishSlot = fishSlot;
+    }
+
+    public int getSellAllSlot() {
+        return sellAllSlot;
+    }
+
+    public void setSellAllSlot(int sellAllSlot) {
+        this.sellAllSlot = sellAllSlot;
     }
 
     @Override

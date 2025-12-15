@@ -31,7 +31,7 @@ public class JournalAutoGeneratorPaged {
 
     public static void regenerate(Plugin plugin, FishingConfig fishingConfig) {
         if (fishingConfig == null) {
-            plugin.getLogger().severe("[SoulSMP] FishingConfig is null — cannot regenerate journal.yml.");
+            plugin.getLogger().severe("FishingConfig is null — cannot regenerate journal.yml.");
             return;
         }
 
@@ -164,10 +164,10 @@ public class JournalAutoGeneratorPaged {
         try {
             yml.save(file);
         } catch (IOException e) {
-            plugin.getLogger().severe("[SoulSMP] Could not save journal.yml: " + e.getMessage());
+            plugin.getLogger().severe("Could not save journal.yml: " + e.getMessage());
         }
 
-        plugin.getLogger().info("[SoulSMP] Regenerated journal.yml (chance-based). Generated pages="
+        plugin.getLogger().info("Regenerated journal.yml (chance-based). Generated pages="
                 + generatedPageCount + ", custom pages preserved=" + customPageCount + ".");
     }
 

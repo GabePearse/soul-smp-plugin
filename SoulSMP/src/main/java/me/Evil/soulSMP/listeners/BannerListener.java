@@ -117,8 +117,7 @@ public class BannerListener implements Listener {
         // Overworld (main claim banner) – keep your existing claim logic here
         // Example:
         if (team.hasBannerLocation()) {
-            player.sendMessage(ChatColor.RED + "Your team already has a banner placed. Use `/team banner remove' to break it first.");
-            event.setCancelled(true);
+            player.sendMessage(ChatColor.RED + "Your team already has a banner placed. This will just be a decoration. If you want to replace your banner use: " + ChatColor.AQUA + "/team banner remove" + ChatColor.RED + ".");
             return;
         }
 

@@ -5,6 +5,7 @@ import me.Evil.soulSMP.store.StoreItemBuilder;
 import me.Evil.soulSMP.store.StoreManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -12,13 +13,20 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class StoreCategoryGui {
 
     public static void open(Player player, StoreManager manager, String categoryId, int page) {
         var s = manager.getSettings();
 
-        String title = s.getCategoryTitle().replace("{category}", categoryId);
+        // ✅ Capitalize FIRST LETTER of {category}, not the color code
+        String prettyCategory = (categoryId == null || categoryId.isEmpty())
+                ? ""
+                : Character.toUpperCase(categoryId.charAt(0)) + categoryId.substring(1);
+
+        String title = s.getCategoryTitle().replace("{category}", prettyCategory);
+
         Inventory inv = Bukkit.createInventory(
                 new StoreHolder(StoreHolder.View.CATEGORY, manager, categoryId, page),
                 s.getCategorySize(),
@@ -37,32 +45,32 @@ public class StoreCategoryGui {
         // Build list of store items
         List<StoreItem> items = new ArrayList<>(manager.getSettings().getBuyItems(categoryId).values());
 
-        // Pagination (only items with configured slots; but also allow > 1 page by slot ranges)
-        // Simple: we place items by their configured slot and ignore page if slot already absolute.
-        // If you want true paging by list order, we can switch to dynamic slot maps later.
         for (StoreItem it : items) {
             ItemStack display = StoreItemBuilder.buildForDisplay(it);
 
             // add price line to lore
             ItemMeta dm = display.getItemMeta();
             if (dm != null) {
-                var lore = dm.getLore();
+                List<String> lore = dm.getLore();
                 if (lore == null) lore = new ArrayList<>();
+                lore.add("");
                 lore.add(color("&7Cost: &b" + it.price + " &7Soul Tokens"));
                 dm.setLore(lore);
                 display.setItemMeta(dm);
             }
 
-            if (it.slot >= 0 && it.slot < inv.getSize()) inv.setItem(it.slot, display);
+            if (it.slot >= 0 && it.slot < inv.getSize()) {
+                inv.setItem(it.slot, display);
+            }
         }
 
         // Back button
-        inv.setItem(s.getBackSlot(), button("&cBack", org.bukkit.Material.BARRIER));
+        inv.setItem(s.getBackSlot(), button("&cBack", Material.ARROW));
 
         player.openInventory(inv);
     }
 
-    private static ItemStack button(String name, org.bukkit.Material mat) {
+    private static ItemStack button(String name, Material mat) {
         ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {

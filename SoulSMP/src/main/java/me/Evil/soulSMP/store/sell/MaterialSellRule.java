@@ -1,17 +1,30 @@
 package me.Evil.soulSMP.store.sell;
 
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 public class MaterialSellRule {
-    public final org.bukkit.Material material;
+    public final Material material;
     public final int unit;
     public final int payout;
 
-    public MaterialSellRule(org.bukkit.Material material, int unit, int payout) {
+    /**
+     * GUI slot for this material in the sell GUI.
+     * -1 means "not set" (GUI can auto-pack / fallback).
+     */
+    public final int slot;
+
+    public MaterialSellRule(Material material, int unit, int payout, int slot) {
         this.material = material;
         this.unit = Math.max(1, unit);
         this.payout = Math.max(0, payout);
+        this.slot = slot;
+    }
+
+    // Backwards-compatible ctor if older code still calls the 3-arg version
+    public MaterialSellRule(Material material, int unit, int payout) {
+        this(material, unit, payout, -1);
     }
 
     public int sellFromStack(Player player, int slot, ItemStack stack) {

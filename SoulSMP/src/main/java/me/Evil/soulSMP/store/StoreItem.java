@@ -34,6 +34,9 @@ public class StoreItem {
 
         String name = g.getString("name", null);
         List<String> lore = g.getStringList("lore");
+        if (!lore.isEmpty()) {
+            lore.add(0, " "); // whitespace line before lore
+        }
         boolean unbreakable = g.getBoolean("unbreakable", false);
         Integer model = g.contains("custom-model-data") ? g.getInt("custom-model-data") : null;
         List<String> ench = g.getStringList("enchants");

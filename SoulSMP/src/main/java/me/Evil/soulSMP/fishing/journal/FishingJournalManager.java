@@ -45,7 +45,7 @@ public class FishingJournalManager {
                     //noinspection ResultOfMethodCallIgnored
                     journalFile.createNewFile();
                 } catch (IOException e) {
-                    plugin.getLogger().severe("[SoulSMP] Could not create journal.yml: " + e.getMessage());
+                    plugin.getLogger().severe("Could not create journal.yml: " + e.getMessage());
                 }
             }
         }
@@ -89,7 +89,7 @@ public class FishingJournalManager {
             }
         }
 
-        plugin.getLogger().info("[SoulSMP] Journal loaded: pages=" + pageCount + ", pagesWithEntries=" + pageEntries.size());
+        plugin.getLogger().info("Journal loaded: pages=" + pageCount + ", pagesWithEntries=" + pageEntries.size());
     }
 
     /**
@@ -155,7 +155,7 @@ public class FishingJournalManager {
                 //noinspection ResultOfMethodCallIgnored
                 dataFile.createNewFile();
             } catch (IOException e) {
-                plugin.getLogger().severe("[SoulSMP] Could not create fishing_journal_data.yml: " + e.getMessage());
+                plugin.getLogger().severe("Could not create fishing_journal_data.yml: " + e.getMessage());
             }
         }
         dataCfg = YamlConfiguration.loadConfiguration(dataFile);
@@ -205,7 +205,7 @@ public class FishingJournalManager {
         try {
             dataCfg.save(dataFile);
         } catch (IOException e) {
-            plugin.getLogger().severe("[SoulSMP] Could not save fishing_journal_data.yml: " + e.getMessage());
+            plugin.getLogger().severe("Could not save fishing_journal_data.yml: " + e.getMessage());
         }
     }
 
