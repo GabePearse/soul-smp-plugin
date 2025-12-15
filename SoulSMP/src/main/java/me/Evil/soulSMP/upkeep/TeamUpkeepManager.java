@@ -60,14 +60,18 @@ public class TeamUpkeepManager {
         long last = team.getLastUpkeepPaymentMillis();
         long now = System.currentTimeMillis();
 
-        long days;
+        // Brand-new / legacy teams: start their upkeep clock now
         if (last <= 0L) {
-            // Never paid – treat as very overdue
-            days = unprotectedThresholdDays + 7L;
-        } else {
-            long diffMillis = now - last;
-            days = Duration.ofMillis(diffMillis).toDays();
+            team.setLastUpkeepPaymentMillis(now);
+            team.setUnpaidWeeks(0);
+            team.setUpkeepStatus(UpkeepStatus.PROTECTED);
+            team.setBaseClaimRadiusForUpkeep(-1); // optional safety
+            teamManager.saveTeam(team);
+            return;
         }
+
+        long diffMillis = now - last;
+        long days = Duration.ofMillis(diffMillis).toDays();
 
         // Weeks owed, capped
         int weeksOwed;

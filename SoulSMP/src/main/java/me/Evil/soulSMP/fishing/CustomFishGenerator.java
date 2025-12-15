@@ -1,8 +1,8 @@
 package me.Evil.soulSMP.fishing;
 
+import me.Evil.soulSMP.store.sell.SellEngine;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
-import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -14,6 +14,9 @@ public class CustomFishGenerator {
     private final FishingConfig cfg;
     private final NamespacedKey typeKey, rarityKey, weightKey, scoreKey, chanceKey;
 
+    // Used to make the lore worth match sell logic exactly
+    private final SellEngine sellEngine;
+
     private static final double LUCK_BIAS_PER_LEVEL = 0.05;
 
     // cached rank map (Common=0 ... Divine=highest)
@@ -24,13 +27,15 @@ public class CustomFishGenerator {
                                NamespacedKey rarityKey,
                                NamespacedKey weightKey,
                                NamespacedKey scoreKey,
-                               NamespacedKey chanceKey) {
+                               NamespacedKey chanceKey,
+                               SellEngine sellEngine) {
         this.cfg = cfg;
         this.typeKey = typeKey;
         this.rarityKey = rarityKey;
         this.weightKey = weightKey;
         this.scoreKey = scoreKey;
         this.chanceKey = chanceKey;
+        this.sellEngine = sellEngine;
 
         buildRarityRank();
     }
@@ -116,7 +121,7 @@ public class CustomFishGenerator {
         return cfg.rarities.values().iterator().next();
     }
 
-    // NEW: compute exact chance after luck bias (P(type) * P(rarity|type))
+    // compute exact chance after luck bias (P(type) * P(rarity|type))
     private double computeChance(FishType type, FishingRarity rarity, int luckLevel) {
         // P(type)
         double totalType = 0.0;
@@ -172,7 +177,10 @@ public class CustomFishGenerator {
         double score =
                 type.getBaseScore() *
                         rarity.getScoreMultiplier() *
-                        (weight / 10.0);
+                        (weight / 25.0);
+
+        // ✅ Visual worth now matches SellEngine formula exactly
+        int worthTokens = sellEngine.computeFishPayout(score, rarity.getId());
 
         double chance = computeChance(type, rarity, luckLevel);
 
@@ -196,9 +204,17 @@ public class CustomFishGenerator {
                             .replace("{type_name}", type.getId())
                             .replace("{weight}", String.format("%.1f", weight))));
         }
+
+        // ✅ Add "Worth" line (remove old one if present to avoid duplicates)
+        lore.removeIf(l -> ChatColor.stripColor(l).toLowerCase(Locale.ROOT).startsWith("worth:"));
+        lore.add("");
+        lore.add(ChatColor.translateAlternateColorCodes('&',
+                "&bWorth: &f" + worthTokens + " &7Soul Tokens"
+        ));
+
         meta.setLore(lore);
 
-        // NBT/PDC
+        // PDC
         meta.getPersistentDataContainer().set(typeKey, PersistentDataType.STRING, type.getId());
         meta.getPersistentDataContainer().set(rarityKey, PersistentDataType.STRING, rarity.getId());
         meta.getPersistentDataContainer().set(weightKey, PersistentDataType.DOUBLE, weight);

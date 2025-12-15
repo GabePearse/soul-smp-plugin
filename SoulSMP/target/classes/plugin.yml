@@ -38,3 +38,7 @@ commands:
   fishsim:
     description: Simulate fish generation and print score statistics + sell multiplier suggestions.
     usage: /fishsim [samples] [luck]
+  bank:
+    description: Open the Soul Token bank
+    usage: /bank
+

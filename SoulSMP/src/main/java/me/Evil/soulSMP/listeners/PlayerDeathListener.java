@@ -26,8 +26,8 @@ public class PlayerDeathListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
 
-        // 1) Drop 1x Soul Token at the death location
-        ItemStack token = tokenManager.createToken(1);
+        // 1) Drop 10x Soul Token at the death location
+        ItemStack token = tokenManager.createToken(10);
         if (token != null) {
             player.getWorld().dropItemNaturally(player.getLocation(), token);
         }

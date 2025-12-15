@@ -257,3 +257,11 @@ fish-types:
     chance: 0.0005
     rarity-weights:
       DIVINE: 1.0
+
+  BEDROCK:
+    material: BEDROCK
+    display-name-format: "{rarity_color}Bedrock"
+    base-score: 40
+    chance: 0.0005
+    rarity-weights:
+      DIVINE: 1.0

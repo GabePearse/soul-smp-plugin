@@ -47,7 +47,7 @@ public class BannerShopSettings {
         } else {
             this.size = 54;
             this.title = ChatColor.DARK_GREEN + "Banner Shop";
-            plugin.getLogger().warning("[SoulSMP] 'banner-shop' section missing in team-shop.yml; using defaults.");
+            plugin.getLogger().warning("'banner-shop' section missing in team-shop.yml; using defaults.");
         }
 
         // Filler
@@ -67,7 +67,7 @@ public class BannerShopSettings {
         // Items
         ConfigurationSection itemsSec = cfg.getConfigurationSection("banner-shop.items");
         if (itemsSec == null) {
-            plugin.getLogger().warning("[SoulSMP] banner-shop.items missing in team-shop.yml");
+            plugin.getLogger().warning("banner-shop.items missing in team-shop.yml");
         } else {
             for (String id : itemsSec.getKeys(false)) {
                 ConfigurationSection sec = itemsSec.getConfigurationSection(id);
@@ -119,7 +119,7 @@ public class BannerShopSettings {
             }
         }
 
-        plugin.getLogger().info("[SoulSMP] Loaded " + itemsBySlot.size() + " banner shop item(s).");
+        plugin.getLogger().info("Loaded " + itemsBySlot.size() + " banner shop item(s).");
     }
 
     public int getSize() {
