@@ -29,11 +29,11 @@ public class BannerShopSettings {
     public BannerShopSettings(Plugin plugin) {
         this.plugin = plugin;
 
-        File file = new File(plugin.getDataFolder(), "shop.yml");
+        File file = new File(plugin.getDataFolder(), "team-shop.yml");
         if (!file.exists()) {
-            // If you don't actually bundle shop.yml as a resource, you can
+            // If you don't actually bundle team-shop.yml as a resource, you can
             // comment this out – otherwise Bukkit will throw if it can't find it.
-            plugin.saveResource("shop.yml", false);
+            plugin.saveResource("team-shop.yml", false);
         }
 
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
@@ -47,7 +47,7 @@ public class BannerShopSettings {
         } else {
             this.size = 54;
             this.title = ChatColor.DARK_GREEN + "Banner Shop";
-            plugin.getLogger().warning("[SoulSMP] 'banner-shop' section missing in shop.yml; using defaults.");
+            plugin.getLogger().warning("[SoulSMP] 'banner-shop' section missing in team-shop.yml; using defaults.");
         }
 
         // Filler
@@ -67,7 +67,7 @@ public class BannerShopSettings {
         // Items
         ConfigurationSection itemsSec = cfg.getConfigurationSection("banner-shop.items");
         if (itemsSec == null) {
-            plugin.getLogger().warning("[SoulSMP] banner-shop.items missing in shop.yml");
+            plugin.getLogger().warning("[SoulSMP] banner-shop.items missing in team-shop.yml");
         } else {
             for (String id : itemsSec.getKeys(false)) {
                 ConfigurationSection sec = itemsSec.getConfigurationSection(id);

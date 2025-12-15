@@ -45,6 +45,27 @@ public class SoulTokenManager {
         return item;
     }
 
+    public void giveTokens(Player player, int amount) {
+        if (amount <= 0) return;
+
+        int maxStack = 64;
+        int remaining = amount;
+
+        while (remaining > 0) {
+            int stack = Math.min(maxStack, remaining);
+            ItemStack tokenStack = createToken(stack);
+
+            var leftover = player.getInventory().addItem(tokenStack);
+            if (!leftover.isEmpty()) {
+                // drop overflow at player feet
+                leftover.values().forEach(it -> player.getWorld().dropItemNaturally(player.getLocation(), it));
+            }
+
+            remaining -= stack;
+        }
+    }
+
+
     /**
      * Checks if an ItemStack is a Soul Token.
      */

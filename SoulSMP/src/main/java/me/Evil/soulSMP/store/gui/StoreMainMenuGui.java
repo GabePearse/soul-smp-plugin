@@ -1,7 +1,6 @@
 package me.Evil.soulSMP.store.gui;
 
 import me.Evil.soulSMP.store.StoreManager;
-import me.Evil.soulSMP.store.gui.holder.StoreHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;

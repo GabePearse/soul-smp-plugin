@@ -14,7 +14,7 @@ public class CustomFishGenerator {
     private final FishingConfig cfg;
     private final NamespacedKey typeKey, rarityKey, weightKey, scoreKey, chanceKey;
 
-    private static final double LUCK_BIAS_PER_LEVEL = 0.10;
+    private static final double LUCK_BIAS_PER_LEVEL = 0.05;
 
     // cached rank map (Common=0 ... Divine=highest)
     private final Map<String, Integer> rarityRank = new HashMap<>();

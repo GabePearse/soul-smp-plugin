@@ -10,6 +10,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -125,6 +126,119 @@ public class SellEngine {
 
         if (totalPayout > 0) tokenManager.giveTokens(player, totalPayout);
         return totalPayout;
+    }
+
+    public Map<Material, MaterialSellRule> getMaterialRules() {
+        return Collections.unmodifiableMap(materialRules);
+    }
+
+    /** Sells exactly one "unit" worth (e.g. 64 cobble) if the player has enough. */
+    public int sellOneMaterialUnit(Player player, Material material) {
+        MaterialSellRule rule = materialRules.get(material);
+        if (rule == null) return 0;
+
+        int unit = rule.unit;
+        int payoutPerUnit = rule.payout;
+        if (payoutPerUnit <= 0) return 0;
+
+        int available = countMaterial(player, material);
+        if (available < unit) return 0;
+
+        // remove exactly 'unit'
+        removeMaterial(player, material, unit);
+
+        tokenManager.giveTokens(player, payoutPerUnit);
+        return payoutPerUnit;
+    }
+
+    /** Sells as many full units as possible for that material. */
+    public int sellAllMaterialUnits(Player player, Material material) {
+        MaterialSellRule rule = materialRules.get(material);
+        if (rule == null) return 0;
+
+        int unit = rule.unit;
+        int payoutPerUnit = rule.payout;
+        if (payoutPerUnit <= 0) return 0;
+
+        int available = countMaterial(player, material);
+        int bundles = available / unit;
+        if (bundles <= 0) return 0;
+
+        int remove = bundles * unit;
+        removeMaterial(player, material, remove);
+
+        int total = bundles * payoutPerUnit;
+        tokenManager.giveTokens(player, total);
+        return total;
+    }
+
+    /** Sells exactly one Soul Fish from inventory if present. */
+    public int sellOneSoulFish(Player player) {
+        if (!soulFishEnabled) return 0;
+
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack it = player.getInventory().getItem(slot);
+            if (it == null) continue;
+
+            if (isSoulFish(it)) {
+                int payout = computeFishPayout(it);
+                player.getInventory().setItem(slot, null);
+                if (payout > 0) tokenManager.giveTokens(player, payout);
+                return payout;
+            }
+        }
+        return 0;
+    }
+
+    /** Sells all Soul Fish in inventory. */
+    public int sellAllSoulFish(Player player) {
+        if (!soulFishEnabled) return 0;
+
+        int total = 0;
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack it = player.getInventory().getItem(slot);
+            if (it == null) continue;
+
+            if (isSoulFish(it)) {
+                int payout = computeFishPayout(it);
+                player.getInventory().setItem(slot, null);
+                total += Math.max(0, payout);
+            }
+        }
+
+        if (total > 0) tokenManager.giveTokens(player, total);
+        return total;
+    }
+
+    private int countMaterial(Player player, Material material) {
+        int total = 0;
+        for (ItemStack it : player.getInventory().getContents()) {
+            if (it == null) continue;
+            if (it.getType() == material) total += it.getAmount();
+        }
+        return total;
+    }
+
+    private void removeMaterial(Player player, Material material, int amount) {
+        int toRemove = amount;
+
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack it = player.getInventory().getItem(slot);
+            if (it == null) continue;
+            if (it.getType() != material) continue;
+
+            int stack = it.getAmount();
+            if (stack <= toRemove) {
+                player.getInventory().setItem(slot, null);
+                toRemove -= stack;
+            } else {
+                it.setAmount(stack - toRemove);
+                player.getInventory().setItem(slot, it);
+                toRemove = 0;
+            }
+
+            if (toRemove <= 0) break;
+        }
     }
 
     private boolean isSoulFish(ItemStack it) {

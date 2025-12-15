@@ -8,9 +8,13 @@ import org.bukkit.plugin.Plugin;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class FishingConfig {
+
+    private final Plugin plugin;
+    private final File file;
 
     public boolean enabled;
     public boolean overrideVanilla;
@@ -18,15 +22,43 @@ public class FishingConfig {
     public Map<String, FishingRarity> rarities = new HashMap<>();
     public Map<String, FishType> fishTypes = new HashMap<>();
 
-    public java.util.List<String> loreLines;
+    public List<String> loreLines;
 
     public FishingConfig(Plugin plugin) {
+        this.plugin = plugin;
+        this.file = new File(plugin.getDataFolder(), "fishing.yml");
+        reload(); // load immediately
+    }
 
-        File file = new File(plugin.getDataFolder(), "fishing.yml");
+    /**
+     * Reload fishing.yml from disk and repopulate rarities + fish types.
+     * Also saves fishing.yml from jar if it doesn't exist yet.
+     */
+    public void reload() {
+        // Ensure data folder exists
+        if (!plugin.getDataFolder().exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            plugin.getDataFolder().mkdirs();
+        }
+
+        // Ensure fishing.yml exists (copied from resources in your plugin jar)
+        if (!file.exists()) {
+            try {
+                plugin.saveResource("fishing.yml", false);
+            } catch (IllegalArgumentException ex) {
+                plugin.getLogger().warning("Missing fishing.yml in plugin jar resources. Create plugins/"
+                        + plugin.getName() + "/fishing.yml manually.");
+            }
+        }
+
         FileConfiguration cfg = YamlConfiguration.loadConfiguration(file);
 
         enabled = cfg.getBoolean("enabled", true);
         overrideVanilla = cfg.getBoolean("override-vanilla-fishing", true);
+
+        // reset
+        rarities.clear();
+        fishTypes.clear();
 
         // ---- Load Rarities ----
         ConfigurationSection rSec = cfg.getConfigurationSection("rarities");
@@ -41,10 +73,10 @@ public class FishingConfig {
 
                 rarities.put(id, new FishingRarity(
                         id,
-                        rs.getString("display-name"),
-                        rs.getString("color"),
-                        rs.getDouble("weight"),
-                        rs.getDouble("score-multiplier"),
+                        rs.getString("display-name", id),
+                        rs.getString("color", "&7"),
+                        rs.getDouble("weight", 1.0),
+                        rs.getDouble("score-multiplier", 1.0),
                         minW,
                         maxW
                 ));
@@ -58,11 +90,15 @@ public class FishingConfig {
                 ConfigurationSection fs = tSec.getConfigurationSection(id);
                 if (fs == null) continue;
 
+                String matName = fs.getString("material", "COD");
+                Material mat = Material.matchMaterial(matName);
+                if (mat == null) mat = Material.COD;
+
                 FishType type = new FishType(
                         id,
-                        Material.matchMaterial(fs.getString("material", "COD")),
-                        fs.getString("display-name-format"),
-                        fs.getInt("base-score")
+                        mat,
+                        fs.getString("display-name-format", "{rarity_color}{rarity_name} {type_name} &7({weight}lb)"),
+                        fs.getInt("base-score", 10)
                 );
 
                 // global chance (how often this fish is picked vs others)
@@ -81,5 +117,9 @@ public class FishingConfig {
         }
 
         loreLines = cfg.getStringList("display.lore");
+
+        plugin.getLogger().info("FishingConfig: loaded rarities=" + rarities.size()
+                + ", fishTypes=" + fishTypes.size()
+                + " from " + file.getName());
     }
 }

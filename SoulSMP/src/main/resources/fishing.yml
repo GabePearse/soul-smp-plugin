@@ -1,3 +1,76 @@
+enabled: true
+override-vanilla-fishing: true
+
+display:
+  lore:
+    - "&7Type: &f{type_name}"
+    - "&7Rarity: {rarity_color}{rarity_name}"
+    - "&7Weight: &f{weight}lb"
+
+rarities:
+  COMMON:
+    display-name: "&7Common"
+    color: "&7"
+    weight: 60
+    score-multiplier: 1.0
+    weight-range:
+      min: 1
+      max: 10
+
+  UNCOMMON:
+    display-name: "&aUncommon"
+    color: "&a"
+    weight: 25
+    score-multiplier: 1.5
+    weight-range:
+      min: 6
+      max: 14
+
+  RARE:
+    display-name: "&9Rare"
+    color: "&9"
+    weight: 10
+    score-multiplier: 2.0
+    weight-range:
+      min: 10
+      max: 20
+
+  EPIC:
+    display-name: "&5Epic"
+    color: "&5"
+    weight: 3
+    score-multiplier: 3.0
+    weight-range:
+      min: 16
+      max: 28
+
+  LEGENDARY:
+    display-name: "&6Legendary"
+    color: "&6"
+    weight: 1
+    score-multiplier: 4.0
+    weight-range:
+      min: 22
+      max: 36
+
+  MYTHIC:
+    display-name: "&dMythic"
+    color: "&d"
+    weight: 0.25
+    score-multiplier: 5.0
+    weight-range:
+      min: 30
+      max: 50
+
+  DIVINE:
+    display-name: "&bDivine"
+    color: "&b"
+    weight: 0.05
+    score-multiplier: 8.0
+    weight-range:
+      min: 45
+      max: 75
+
 fish-types:
 
   # ==================================================
@@ -33,7 +106,6 @@ fish-types:
     base-score: 10
     chance: 35
 
-
   # ==================================================
   # UNCOMMON TIER (common, but not constant)
   # ==================================================
@@ -66,7 +138,6 @@ fish-types:
     display-name-format: "{rarity_color}{type_name}"
     base-score: 11
     chance: 20
-
 
   # ==================================================
   # RARE TIER (noticeably less common)
@@ -125,7 +196,6 @@ fish-types:
     base-score: 18
     chance: 14
 
-
   # ==================================================
   # EPIC TIER (low frequency, strong catches)
   # ==================================================
@@ -146,7 +216,6 @@ fish-types:
     display-name-format: "{rarity_color}{type_name}"
     base-score: 28
     chance: 10
-
 
   # ==================================================
   # LEGENDARY TIER (very rare)
@@ -169,7 +238,6 @@ fish-types:
     base-score: 32
     chance: 7
 
-
   # ==================================================
   # MYTHIC TIER (extremely rare)
   # ==================================================
@@ -178,7 +246,6 @@ fish-types:
     display-name-format: "{rarity_color}{type_name}"
     base-score: 30
     chance: 3
-
 
   # ==================================================
   # DIVINE TIER (practically unique)
@@ -189,4 +256,4 @@ fish-types:
     base-score: 40
     chance: 0.0005
     rarity-weights:
-      DIVINE: 0.0005
+      DIVINE: 1.0

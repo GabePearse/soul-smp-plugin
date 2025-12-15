@@ -2,6 +2,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\JournalCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\SoulSMPCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\SoulTokenCommand.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\StoreCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\TeamChatToggleCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\TeamCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\TeamWhisperCommand.java
@@ -21,6 +22,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishingListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\PlayerDeathListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\SoulTokenProtectionListener.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\StoreListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\TeamActivityListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\TeamBannerShopListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\TeamChatListener.java
@@ -33,6 +35,19 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\shop\TeamBannerShopGui.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\shop\TeamBannerShopHolder.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\SoulSMP.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\gui\SellGui.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\gui\StoreCategoryGui.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\gui\StoreHolder.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\gui\StoreMainMenuGui.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\sell\MaterialSellRule.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\sell\SellEngine.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\sell\SellHolder.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\StoreCategory.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\StoreItem.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\StoreItemBuilder.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\StoreManager.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\StoreSettings.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\store\util\FishSimCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\team\Team.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\team\TeamManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\tokens\SoulTokenManager.java
@@ -45,6 +60,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\upkeep\TeamUpkeepManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\upkeep\UpkeepStatus.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\util\CostUtils.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\util\GiveOrDrop.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\util\InventoryUtils.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\util\TeamUtils.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\vault\TeamVaultHolder.java

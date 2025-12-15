@@ -1,4 +1,4 @@
-package me.Evil.soulSMP.store.gui.holder;
+package me.Evil.soulSMP.store.gui;
 
 import me.Evil.soulSMP.store.StoreManager;
 import org.bukkit.inventory.Inventory;

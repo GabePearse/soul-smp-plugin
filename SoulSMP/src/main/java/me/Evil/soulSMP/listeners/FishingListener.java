@@ -3,6 +3,7 @@ package me.Evil.soulSMP.listeners;
 import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.FishingRarity;
+import me.Evil.soulSMP.util.GiveOrDrop;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
@@ -71,7 +72,7 @@ public class FishingListener implements Listener {
         if (fish == null) return;
 
         // Give fish to player
-        player.getInventory().addItem(fish);
+        GiveOrDrop.give(player, fish);
 
         // Broadcast if chance < 1%
         announceIfUltraRare(player, fish);

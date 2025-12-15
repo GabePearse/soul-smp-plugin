@@ -2,6 +2,7 @@ package me.Evil.soulSMP.commands;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
+import me.Evil.soulSMP.util.GiveOrDrop;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -438,7 +439,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
-        player.getInventory().addItem(banner);
+        GiveOrDrop.give(player, banner);
         player.sendMessage(ChatColor.GREEN + "You received a copy of your team banner.");
     }
 
