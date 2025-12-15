@@ -1,11 +1,7 @@
 package me.Evil.soulSMP;
 
 import me.Evil.soulSMP.chat.TeamChatManager;
-import me.Evil.soulSMP.commands.JournalCommand;
-import me.Evil.soulSMP.commands.SoulTokenCommand;
-import me.Evil.soulSMP.commands.TeamCommand;
-import me.Evil.soulSMP.commands.TeamChatToggleCommand;
-import me.Evil.soulSMP.commands.TeamWhisperCommand;
+import me.Evil.soulSMP.commands.*;
 import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.journal.FishingJournalManager;
@@ -13,6 +9,8 @@ import me.Evil.soulSMP.fishing.journal.JournalAutoGeneratorPaged;
 import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
+import me.Evil.soulSMP.store.StoreManager;
+import me.Evil.soulSMP.store.util.FishSimCommand;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
 import me.Evil.soulSMP.upgrades.BeaconEffectManager;
@@ -38,9 +36,13 @@ public class SoulSMP extends JavaPlugin {
     // Journal system
     private FishingJournalManager fishingJournalManager;
 
+    // Shop settings
     private BannerShopSettings bannerShopSettings;
     private BeaconEffectSettings effectSettings;
     private DimensionBannerShopSettings dimensionBannerShopSettings;
+
+    // Player Store
+    private StoreManager storeManager;
 
     // Task IDs
     private int auraTaskId = -1;
@@ -58,10 +60,19 @@ public class SoulSMP extends JavaPlugin {
         tokenManager = new SoulTokenManager(this);
 
         // ---------------------------
-        // FISHING + JOURNAL
+        // FISHING CONFIG (LOAD FIRST)
         // ---------------------------
         fishingConfig = new FishingConfig(this);
+        fishingConfig.reload(); // ✅ REQUIRED
 
+        getLogger().info("FishingConfig loaded: fishTypes="
+                + fishingConfig.fishTypes.size()
+                + ", rarities="
+                + fishingConfig.rarities.size());
+
+        // ---------------------------
+        // JOURNAL
+        // ---------------------------
         JournalAutoGeneratorPaged.regenerate(this, fishingConfig);
         fishingJournalManager = new FishingJournalManager(this);
 
@@ -69,7 +80,7 @@ public class SoulSMP extends JavaPlugin {
         // OTHER MANAGERS
         // ---------------------------
         upkeepManager = new TeamUpkeepManager(this, teamManager, tokenManager);
-
+        storeManager = new StoreManager(this, tokenManager);
         bannerShopSettings = new BannerShopSettings(this);
         effectSettings = new BeaconEffectSettings(this);
         dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
@@ -102,7 +113,7 @@ public class SoulSMP extends JavaPlugin {
         // COMMANDS
         // ---------------------------
         if (getCommand("soulsmp") != null) {
-            var mainCmd = new me.Evil.soulSMP.commands.SoulSMPCommand(this);
+            SoulSMPCommand mainCmd = new SoulSMPCommand(this);
             getCommand("soulsmp").setExecutor(mainCmd);
             getCommand("soulsmp").setTabCompleter(mainCmd);
         }
@@ -127,10 +138,23 @@ public class SoulSMP extends JavaPlugin {
             getCommand("token").setTabCompleter(tokenCmd);
         }
 
-        // JOURNAL COMMAND
         if (getCommand("journal") != null) {
             getCommand("journal").setExecutor(
                     new JournalCommand(fishingJournalManager, fishingConfig)
+            );
+        }
+
+        if (getCommand("store") != null) {
+            getCommand("store").setExecutor(new StoreCommand(storeManager));
+        }
+
+        if (getCommand("fishsim") != null) {
+            getCommand("fishsim").setExecutor(
+                    new FishSimCommand(
+                            fishGenerator,
+                            fishRarityKey,
+                            fishScoreKey
+                    )
             );
         }
 
@@ -152,9 +176,15 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
         Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
 
-        // IMPORTANT: FishingListener must receive chanceKey now
         Bukkit.getPluginManager().registerEvents(
-                new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey),
+                new FishingListener(
+                        fishingConfig,
+                        fishGenerator,
+                        fishTypeKey,
+                        fishRarityKey,
+                        fishWeightKey,
+                        fishChanceKey
+                ),
                 this
         );
 
@@ -162,9 +192,7 @@ public class SoulSMP extends JavaPlugin {
                 new FishingJournalListener(this, fishingJournalManager, fishingConfig),
                 this
         );
-
-        // OPTIONAL: Remove this if you now broadcast inside FishingListener
-        // Bukkit.getPluginManager().registerEvents(new RareFishBroadcastListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
 
         // ---------------------------
         // TASKS
@@ -195,12 +223,23 @@ public class SoulSMP extends JavaPlugin {
         effectSettings = new BeaconEffectSettings(this);
         dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
+        // ---------------------------
+        // RELOAD FISHING CONFIG (FIX)
+        // ---------------------------
         fishingConfig = new FishingConfig(this);
+        fishingConfig.reload(); // ✅ REQUIRED
+
+        getLogger().info("FishingConfig reloaded: fishTypes="
+                + fishingConfig.fishTypes.size()
+                + ", rarities="
+                + fishingConfig.rarities.size());
+
         JournalAutoGeneratorPaged.regenerate(this, fishingConfig);
 
         if (teamManager != null) teamManager.reloadTeamsFromFile();
         if (vaultManager != null) vaultManager.loadVaults();
         if (fishingJournalManager != null) fishingJournalManager.reload();
+        if (storeManager != null) storeManager.reload();
 
         NamespacedKey fishTypeKey   = new NamespacedKey(this, "fish_type");
         NamespacedKey fishRarityKey = new NamespacedKey(this, "fish_rarity");
@@ -219,24 +258,15 @@ public class SoulSMP extends JavaPlugin {
 
         org.bukkit.event.HandlerList.unregisterAll(this);
 
-        Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(
-                teamManager, tokenManager, bannerShopSettings, effectSettings,
-                dimensionBannerShopSettings, upkeepManager
-        ), this);
-        Bukkit.getPluginManager().registerEvents(new BeaconEffectsListener(
-                effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager
-        ), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
-        Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
-
-        // IMPORTANT: FishingListener must receive chanceKey now
         Bukkit.getPluginManager().registerEvents(
-                new FishingListener(fishingConfig, fishGenerator, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey),
+                new FishingListener(
+                        fishingConfig,
+                        fishGenerator,
+                        fishTypeKey,
+                        fishRarityKey,
+                        fishWeightKey,
+                        fishChanceKey
+                ),
                 this
         );
 
@@ -244,11 +274,8 @@ public class SoulSMP extends JavaPlugin {
                 new FishingJournalListener(this, fishingJournalManager, fishingConfig),
                 this
         );
+        Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
 
-        // OPTIONAL: Remove this if you now broadcast inside FishingListener
-        // Bukkit.getPluginManager().registerEvents(new RareFishBroadcastListener(this), this);
-
-        // Rebind journal command with reloaded config
         if (getCommand("journal") != null) {
             getCommand("journal").setExecutor(
                     new JournalCommand(fishingJournalManager, fishingConfig)

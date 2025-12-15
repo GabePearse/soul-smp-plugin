@@ -36,7 +36,7 @@ public class DimensionBannerShopGui {
             inv.setItem(i, filler);
         }
 
-        // Dimension items from dimension-shop.yml
+        // Dimension items from dimension-team-shop.yml
         for (BannerShopItem item : settings.getItems()) {
             int slot = item.getSlot();
             if (slot < 0 || slot >= inv.getSize()) continue;

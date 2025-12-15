@@ -32,3 +32,9 @@ commands:
     description: Opens the Fishing Journal
     usage: /journal
     aliases: [ fj, fishingjournal ]
+  store:
+    usage: /store
+    description: Open the player store.
+  fishsim:
+    description: Simulate fish generation and print score statistics + sell multiplier suggestions.
+    usage: /fishsim [samples] [luck]

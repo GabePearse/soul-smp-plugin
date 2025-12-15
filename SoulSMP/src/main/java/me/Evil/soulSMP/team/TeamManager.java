@@ -25,22 +25,44 @@ public class TeamManager {
 
     public TeamManager(Plugin plugin) {
         this.plugin = plugin;
-
-        File file = new File(plugin.getDataFolder(), "teams.yml");
-        if (!file.exists()) plugin.saveResource("teams.yml", false);
-
-        teamsFile = file;
-        teamsConfig = YamlConfiguration.loadConfiguration(file);
+        initStorage(); // ✅ centralize file creation / resource copy
     }
 
+    /**
+     * Ensures plugins/<PluginName>/teams.yml exists.
+     * If missing, tries to copy from jar resources (src/main/resources/teams.yml).
+     * If resource copy fails, creates an empty file as a last resort.
+     */
     private void initStorage() {
-        if (!plugin.getDataFolder().exists()) plugin.getDataFolder().mkdirs();
+        if (!plugin.getDataFolder().exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            plugin.getDataFolder().mkdirs();
+        }
 
         teamsFile = new File(plugin.getDataFolder(), "teams.yml");
+
+        // If missing, prefer the packaged resource
         if (!teamsFile.exists()) {
-            try { teamsFile.createNewFile(); }
-            catch (IOException e) {
-                plugin.getLogger().severe("Could not create teams.yml: " + e.getMessage());
+            boolean copied = false;
+
+            try {
+                plugin.saveResource("teams.yml", false);
+                copied = teamsFile.exists();
+            } catch (IllegalArgumentException ex) {
+                // teams.yml not present in jar resources
+                plugin.getLogger().warning("teams.yml not found in plugin jar resources. Will create a blank teams.yml.");
+            } catch (Exception ex) {
+                plugin.getLogger().warning("Failed to copy teams.yml from resources: " + ex.getMessage());
+            }
+
+            // Last resort: create an empty file
+            if (!copied) {
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    teamsFile.createNewFile();
+                } catch (IOException e) {
+                    plugin.getLogger().severe("Could not create teams.yml: " + e.getMessage());
+                }
             }
         }
 
@@ -291,7 +313,7 @@ public class TeamManager {
     }
 
     public void reloadTeamsFromFile() {
-        if (teamsFile == null) initStorage();
+        if (teamsFile == null || teamsConfig == null) initStorage();
 
         teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
 
@@ -316,7 +338,6 @@ public class TeamManager {
             if (existing != null) {
                 remaining.remove(nameKey);
 
-                // update fields (including upkeep automatically loaded)
                 existing.setOwner(loaded.getOwner());
                 existing.setLives(loaded.getLives());
                 existing.setClaimRadius(loaded.getClaimRadius());
@@ -332,7 +353,6 @@ public class TeamManager {
                 existing.setUpkeepStatus(loaded.getUpkeepStatus());
                 existing.setBaseClaimRadiusForUpkeep(loaded.getBaseClaimRadiusForUpkeep());
 
-                // sync members
                 Set<UUID> old = new HashSet<>(existing.getMembers());
                 Set<UUID> nw = new HashSet<>(loaded.getMembers());
 

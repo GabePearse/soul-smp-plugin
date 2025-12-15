@@ -3,7 +3,6 @@ package me.Evil.soulSMP.store.gui;
 import me.Evil.soulSMP.store.StoreItem;
 import me.Evil.soulSMP.store.StoreItemBuilder;
 import me.Evil.soulSMP.store.StoreManager;
-import me.Evil.soulSMP.store.gui.holder.StoreHolder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -42,7 +41,7 @@ public class StoreCategoryGui {
         // Simple: we place items by their configured slot and ignore page if slot already absolute.
         // If you want true paging by list order, we can switch to dynamic slot maps later.
         for (StoreItem it : items) {
-            ItemStack display = StoreItemBuilder.build(it.give);
+            ItemStack display = StoreItemBuilder.buildForDisplay(it);
 
             // add price line to lore
             ItemMeta dm = display.getItemMeta();

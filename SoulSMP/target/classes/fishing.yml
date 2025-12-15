@@ -1,112 +1,259 @@
 enabled: true
 override-vanilla-fishing: true
 
+display:
+  lore:
+    - "&7Type: &f{type_name}"
+    - "&7Rarity: {rarity_color}{rarity_name}"
+    - "&7Weight: &f{weight}lb"
+
 rarities:
   COMMON:
     display-name: "&7Common"
     color: "&7"
     weight: 60
     score-multiplier: 1.0
+    weight-range:
+      min: 1
+      max: 10
 
   UNCOMMON:
     display-name: "&aUncommon"
     color: "&a"
     weight: 25
     score-multiplier: 1.5
+    weight-range:
+      min: 6
+      max: 14
 
   RARE:
     display-name: "&9Rare"
     color: "&9"
     weight: 10
     score-multiplier: 2.0
+    weight-range:
+      min: 10
+      max: 20
 
   EPIC:
     display-name: "&5Epic"
     color: "&5"
     weight: 3
     score-multiplier: 3.0
+    weight-range:
+      min: 16
+      max: 28
 
   LEGENDARY:
     display-name: "&6Legendary"
     color: "&6"
     weight: 1
     score-multiplier: 4.0
+    weight-range:
+      min: 22
+      max: 36
 
   MYTHIC:
     display-name: "&dMythic"
     color: "&d"
     weight: 0.25
     score-multiplier: 5.0
+    weight-range:
+      min: 30
+      max: 50
+
+  DIVINE:
+    display-name: "&bDivine"
+    color: "&b"
+    weight: 0.05
+    score-multiplier: 8.0
+    weight-range:
+      min: 45
+      max: 75
 
 fish-types:
-  SALMON:
-    material: SALMON
-    display-name-format: "{rarity_color}{type_name}"
-    base-score: 10
-    allowed-rarities:
-      - COMMON
-      - UNCOMMON
-      - RARE
-    weight-ranges:
-      COMMON:
-        min: 1
-        max: 7.5
-      UNCOMMON:
-        min: 7.5
-        max: 15
-      RARE:
-        min: 15
-        max: 25
 
+  # ==================================================
+  # COMMON TIER (very frequent)
+  # ==================================================
   COD:
     material: COD
     display-name-format: "{rarity_color}{type_name}"
     base-score: 8
-    allowed-rarities:
-      - COMMON
-      - UNCOMMON
-    weight-ranges:
-      COMMON:
-        min: 3
-        max: 10
-      UNCOMMON:
-        min: 8
-        max: 15
+    chance: 50
+
+  SARDINE:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 5
+    chance: 42
+
+  HERRING:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 6
+    chance: 40
+
+  ANCHOVY:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 5
+    chance: 38
+
+  SALMON:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 10
+    chance: 35
+
+  # ==================================================
+  # UNCOMMON TIER (common, but not constant)
+  # ==================================================
+  MACKEREL:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 9
+    chance: 28
+
+  PERCH:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 9
+    chance: 26
+
+  CARP:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 10
+    chance: 24
+
+  TROUT:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 12
+    chance: 22
+
+  FLOUNDER:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 11
+    chance: 20
+
+  # ==================================================
+  # RARE TIER (noticeably less common)
+  # ==================================================
+  PUFFERFISH:
+    material: PUFFERFISH
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 14
+    chance: 18
+
+  BASS:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 14
+    chance: 18
+
+  SNAPPER:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 13
+    chance: 18
+
+  TROPICAL_FISH:
+    material: TROPICAL_FISH
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 12
+    chance: 16
+
+  HALIBUT:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 16
+    chance: 16
+
+  CATFISH:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 16
+    chance: 15
 
   SWORDFISH:
     material: COD
     display-name-format: "{rarity_color}{type_name}"
     base-score: 25
-    allowed-rarities:
-      - RARE
-      - EPIC
-      - LEGENDARY
-      - MYTHIC
-    weight-ranges:
-      RARE:
-        min: 15
-        max: 25
-      EPIC:
-        min: 18
-        max: 30
-      LEGENDARY:
-        min: 20
-        max: 35
-      MYTHIC:
-        min: 20
-        max: 40
+    chance: 15
 
-selection-weights:
-  SWORDFISH:
-    MYTHIC: 0.05
-    LEGENDARY: 0.5
-    EPIC: 1.0
-    RARE: 2.0
+  SQUID:
+    material: INK_SAC
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 12
+    chance: 14
 
-display:
-  lore:
-    - "&7Type: &f{type_name}"
-    - "&7Rarity: {rarity_color}{rarity_name}"
-    - "&7Weight: &f{weight}lb"
-    - ""
-    - "&8Right-click to add to journal."
+  TUNA:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 18
+    chance: 14
+
+  # ==================================================
+  # EPIC TIER (low frequency, strong catches)
+  # ==================================================
+  PIKE:
+    material: SALMON
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 18
+    chance: 12
+
+  EEL:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 20
+    chance: 11
+
+  MARLIN:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 28
+    chance: 10
+
+  # ==================================================
+  # LEGENDARY TIER (very rare)
+  # ==================================================
+  STINGRAY:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 24
+    chance: 9
+
+  OCTOPUS:
+    material: PUFFERFISH
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 22
+    chance: 8
+
+  SHARK:
+    material: COD
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 32
+    chance: 7
+
+  # ==================================================
+  # MYTHIC TIER (extremely rare)
+  # ==================================================
+  NAUTILUS:
+    material: NAUTILUS_SHELL
+    display-name-format: "{rarity_color}{type_name}"
+    base-score: 30
+    chance: 3
+
+  # ==================================================
+  # DIVINE TIER (practically unique)
+  # ==================================================
+  ABYSSAL_BARRIER:
+    material: BARRIER
+    display-name-format: "{rarity_color}Abyssal Barrier"
+    base-score: 40
+    chance: 0.0005
+    rarity-weights:
+      DIVINE: 1.0
