@@ -130,6 +130,17 @@ public class LeaderboardManager {
     }
 
     // -------------------------
+    // Team lookup for mannequin subtitle
+    // -------------------------
+
+    /** Returns team name for a player UUID, or null if none. Works for offline players. */
+    public String getTeamNameForPlayer(UUID playerId) {
+        if (playerId == null) return null;
+        Team t = teamManager.getTeamByPlayer(playerId);
+        return (t == null || t.getName() == null || t.getName().isBlank()) ? null : t.getName();
+    }
+
+    // -------------------------
     // Winners storage
     // -------------------------
 
@@ -208,7 +219,6 @@ public class LeaderboardManager {
 
         data.set("claimBanner.design.material", t.getBannerMaterial().name());
 
-        // Serialize patterns in a stable way:
         // store: [{color: "RED", type: "minecraft:creeper"}...]
         List<Map<String, Object>> patterns = new ArrayList<>();
         try {
@@ -231,23 +241,15 @@ public class LeaderboardManager {
     // Recompute + update (debounced)
     // -------------------------
 
-    /**
-     * Call this freely (fish caught, journal updated, claim upgraded, etc.)
-     * It will recompute once after a short delay and collapse multiple calls into one.
-     */
     public void scheduleRecompute() {
         if (recomputeTaskId != -1) return;
 
-        // 20 ticks = 1 sec (good default). You can change to 5-40 ticks as you like.
         recomputeTaskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             recomputeTaskId = -1;
             recomputeAndUpdateDisplays();
         }, 20L).getTaskId();
     }
 
-    /**
-     * Hard recompute immediately.
-     */
     public void recomputeAndUpdateDisplays() {
 
         // 1) RAREST FISH CAUGHT (player)
@@ -331,7 +333,6 @@ public class LeaderboardManager {
     // Hooks for recording stats
     // -------------------------
 
-    /** Call when player catches a fish; rarityValue must be comparable (higher = rarer). */
     public void recordRarestFish(UUID player, String name, double rarityValue) {
         if (player == null) return;
 
@@ -350,24 +351,19 @@ public class LeaderboardManager {
         return data.getDouble("stats.players." + player + ".rarestFishValue", -1);
     }
 
-
     // -------------------------
     // Remove everything
     // -------------------------
 
     public void removeAllDisplays() {
-        // Kill spawned entities + blocks
         display.removeAll(this);
 
-        // Clear stored references/locations/boards
         data.set("entities", null);
         data.set("displays", null);
         data.set("boards", null);
         data.set("claimBanner", null);
 
-        // You might want to keep stats (rarestFishValue history) or clear it.
-        // If you want /lb remove to wipe stats too, uncomment:
-        // data.set("stats", null);
+        // data.set("stats", null); // optional wipe
 
         save();
     }

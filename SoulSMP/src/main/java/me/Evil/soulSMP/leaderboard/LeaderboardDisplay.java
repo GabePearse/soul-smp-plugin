@@ -79,20 +79,15 @@ public class LeaderboardDisplay {
         UUID id = lb.getEntityUuid(displayKey);
         if (id == null) return;
 
-        // First try global lookup (works if entity is loaded anywhere)
         Entity e = Bukkit.getEntity(id);
 
-        // If not found, try loading the chunk where it SHOULD be and retry
         if (e == null && loc != null && loc.getWorld() != null) {
             var chunk = loc.getChunk();
             if (!chunk.isLoaded()) chunk.load();
-
             e = loc.getWorld().getEntity(id);
         }
 
-        if (e != null) {
-            e.remove();
-        }
+        if (e != null) e.remove();
     }
 
     private void removeTextEntityByStoredUuid(LeaderboardManager lb, String key) {
@@ -105,21 +100,16 @@ public class LeaderboardDisplay {
         if (e == null && loc != null && loc.getWorld() != null) {
             var chunk = loc.getChunk();
             if (!chunk.isLoaded()) chunk.load();
-
             e = loc.getWorld().getEntity(id);
         }
 
-        if (e != null) {
-            e.remove();
-        }
+        if (e != null) e.remove();
     }
-
 
     private void updatePlayerMannequin(LeaderboardManager lb, String boardKey, String displayKey) {
         Location rawLoc = lb.getDisplayLocation(displayKey);
         if (rawLoc == null || rawLoc.getWorld() == null) return;
 
-        // ✅ Center mannequin on the block
         Location loc = centerOnBlock(rawLoc);
 
         UUID winnerUuid = lb.getWinnerPlayerUuid(boardKey);
@@ -130,9 +120,18 @@ public class LeaderboardDisplay {
         UUID existingId = lb.getEntityUuid(displayKey);
 
         Mannequin mannequin = null;
+
         if (existingId != null) {
-            Entity e = w.getEntity(existingId);
-            if (e instanceof Mannequin m) mannequin = m;
+            Entity e = Bukkit.getEntity(existingId);
+            if (e instanceof Mannequin m) {
+                mannequin = m;
+            } else {
+                var chunk = rawLoc.getChunk();
+                if (!chunk.isLoaded()) chunk.load();
+
+                e = w.getEntity(existingId);
+                if (e instanceof Mannequin m2) mannequin = m2;
+            }
         }
 
         if (mannequin == null) {
@@ -149,50 +148,48 @@ public class LeaderboardDisplay {
         mannequin.setImmovable(true);
         mannequin.setPersistent(true);
 
+        // ✅ NAME: just the winner name again
         String shownName = (winnerName == null || winnerName.isBlank()) ? "None" : winnerName;
         mannequin.customName(Component.text(shownName, NamedTextColor.DARK_RED).decorate(TextDecoration.BOLD));
         mannequin.setCustomNameVisible(true);
 
-        // ✅ Face EXACT yaw stored in the location
+        // ✅ DESCRIPTION: put the team name here (replaces the "NPC" description you see)
+        String teamName = (winnerUuid == null) ? null : lb.getTeamNameForPlayer(winnerUuid);
+        String shownTeam = (teamName == null || teamName.isBlank()) ? "No Team" : teamName;
+
+        mannequin.setDescription(
+                Component.text("[ ", NamedTextColor.GRAY)
+                        .append(Component.text(shownTeam.toUpperCase(Locale.ROOT), NamedTextColor.AQUA))
+                        .append(Component.text(" ]", NamedTextColor.GRAY))
+        );
+
+
+        // Face yaw stored in location
         float yaw = normalizeYaw(loc.getYaw() + MANNEQUIN_YAW_OFFSET);
         mannequin.setRotation(yaw, 0f);
 
-        // ✅ Skin/Profile
+        // Skin/Profile
         applyMannequinSkin(lb, boardKey, mannequin, winnerUuid, winnerName);
     }
 
-    /**
-     * Forces a texture-filled profile onto the mannequin.
-     *
-     * Key idea: Create a Paper PlayerProfile and COMPLETE it off-thread
-     * (this fetches textures), then set ResolvableProfile built from that.
-     *
-     * This is more reliable than UUID/name-only profiles which often remain Steve/Alex.
-     */
     private void applyMannequinSkin(LeaderboardManager lb, String boardKey, Mannequin mannequin, UUID winnerUuid, String winnerName) {
         if (winnerUuid == null) {
             mannequin.setProfile(null);
             return;
         }
 
-        // If we already have a completed profile cached, apply it immediately.
         PlayerProfile cached = resolvedProfileCache.get(winnerUuid);
         if (cached != null) {
             setMannequinProfileSafe(lb, boardKey, mannequin, winnerUuid, cached);
             return;
         }
 
-        // Avoid launching multiple resolves for the same UUID
-        if (!resolving.add(winnerUuid)) {
-            return;
-        }
+        if (!resolving.add(winnerUuid)) return;
 
-        // Resolve off-thread (blocking call)
         Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                // Create & complete profile to pull textures (blocking)
                 PlayerProfile pp = Bukkit.createProfile(winnerUuid, (winnerName == null || winnerName.isBlank()) ? null : winnerName);
-                pp.complete(true); // fetch textures
+                pp.complete(true);
 
                 resolvedProfileCache.put(winnerUuid, pp);
 
@@ -208,20 +205,14 @@ public class LeaderboardDisplay {
         });
     }
 
-    /**
-     * Apply the profile only if the mannequin is still valid and the leaderboard winner hasn't changed.
-     * Also applies 1 tick later to help clients consistently receive the updated profile.
-     */
     private void setMannequinProfileSafe(LeaderboardManager lb, String boardKey, Mannequin mannequin, UUID expectedWinner, PlayerProfile resolved) {
         if (!mannequin.isValid()) return;
 
         UUID latestWinner = lb.getWinnerPlayerUuid(boardKey);
         if (latestWinner == null || !latestWinner.equals(expectedWinner)) return;
 
-        // Apply now
         mannequin.setProfile(ResolvableProfile.resolvableProfile(resolved));
 
-        // Apply again 1 tick later (helps “always default skin” issues on some clients/setups)
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!mannequin.isValid()) return;
 
@@ -237,7 +228,9 @@ public class LeaderboardDisplay {
         if (rawLoc == null || rawLoc.getWorld() == null) return;
 
         World w = rawLoc.getWorld();
-        Block b = w.getBlockAt(rawLoc);
+
+        Block bannerBlock = rawLoc.getBlock();
+        Block b = w.getBlockAt(bannerBlock.getLocation());
 
         String teamName = lb.getWinnerTeamName("biggest_claim");
         int radius = (int) lb.getWinnerValue("biggest_claim");
@@ -247,31 +240,32 @@ public class LeaderboardDisplay {
             bannerMat = Material.WHITE_BANNER;
         }
 
-        // Place banner
         b.setType(bannerMat, false);
-
-        // Rotate banner to match the yaw stored on the location (player look direction)
         orientStandingBannerToYaw(b, rawLoc.getYaw());
-
-        // Apply patterns
         applyBannerDesign(b, lb.getClaimBannerPatterns());
 
-        Location base = rawLoc.clone().add(0.50, 1.2, 0.50);
-        Location titleLoc = base.clone().add(0.0, 1.05, 0.0);
-        Location subLoc   = base.clone().add(0.0, 0.78, 0.0);
+        Location bannerCenter = bannerBlock.getLocation().add(0.5, 0.25, 0.5);
+
+        Location titleLoc = bannerCenter.clone().add(0.0, 2.05, 0.0);
+        Location subLoc   = bannerCenter.clone().add(0.0, 1.78, 0.0);
 
         TextDisplay title = findOrSpawnTextDisplayPersistent(lb, "claim_title", w, titleLoc);
         TextDisplay sub   = findOrSpawnTextDisplayPersistent(lb, "claim_sub", w, subLoc);
 
+        title.teleport(titleLoc);
+        sub.teleport(subLoc);
+
         String shownTeam = (teamName == null || teamName.isBlank()) ? "None" : teamName;
 
-        title.text(Component.text(shownTeam, NamedTextColor.DARK_RED).decorate(TextDecoration.BOLD));
+        title.text(Component.text(shownTeam.toUpperCase(Locale.ROOT), NamedTextColor.AQUA).decorate(TextDecoration.BOLD));
         title.setBillboard(Display.Billboard.CENTER);
-        title.setSeeThrough(true);
+        title.setSeeThrough(false);
+        title.setAlignment(TextDisplay.TextAlignment.CENTER);
 
         sub.text(Component.text("Claim Radius: " + Math.max(0, radius), NamedTextColor.GRAY));
         sub.setBillboard(Display.Billboard.CENTER);
-        sub.setSeeThrough(true);
+        sub.setSeeThrough(false);
+        sub.setAlignment(TextDisplay.TextAlignment.CENTER);
     }
 
     private TextDisplay findOrSpawnTextDisplayPersistent(LeaderboardManager lb, String key, World w, Location loc) {
@@ -280,6 +274,8 @@ public class LeaderboardDisplay {
             Entity e = w.getEntity(id);
             if (e instanceof TextDisplay td) {
                 td.teleport(loc);
+                td.setSeeThrough(false);
+                td.setAlignment(TextDisplay.TextAlignment.CENTER);
                 return td;
             }
         }
@@ -289,7 +285,8 @@ public class LeaderboardDisplay {
         td.setPersistent(true);
         td.setGlowing(true);
         td.setBillboard(Display.Billboard.CENTER);
-        td.setSeeThrough(true);
+        td.setSeeThrough(false);
+        td.setAlignment(TextDisplay.TextAlignment.CENTER);
 
         lb.setTextEntityUuid(key, td.getUniqueId());
         return td;
@@ -363,7 +360,6 @@ public class LeaderboardDisplay {
     private BlockFace blockFaceFromYaw16(float yaw) {
         yaw = normalizeYaw(yaw);
 
-        // 0=S, 45=SW, 90=W, 135=NW, 180=N, 225=NE, 270=E, 315=SE
         BlockFace[] faces = new BlockFace[] {
                 BlockFace.SOUTH,
                 BlockFace.SOUTH_SOUTH_WEST,
