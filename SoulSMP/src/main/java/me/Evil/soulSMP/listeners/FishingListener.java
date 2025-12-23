@@ -3,6 +3,7 @@ package me.Evil.soulSMP.listeners;
 import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.FishingRarity;
+import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import me.Evil.soulSMP.store.sell.SellEngine;
 import me.Evil.soulSMP.util.GiveOrDrop;
 import org.bukkit.Bukkit;
@@ -16,12 +17,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class FishingListener implements Listener {
 
@@ -34,13 +32,16 @@ public class FishingListener implements Listener {
     private final NamespacedKey weightKey;
     private final NamespacedKey chanceKey;
 
+    private final LeaderboardManager leaderboard;
+
     public FishingListener(FishingConfig cfg,
                            CustomFishGenerator generator,
                            SellEngine sellEngine,
                            NamespacedKey typeKey,
                            NamespacedKey rarityKey,
                            NamespacedKey weightKey,
-                           NamespacedKey chanceKey) {
+                           NamespacedKey chanceKey,
+                           LeaderboardManager leaderboard) {
         this.cfg = cfg;
         this.generator = generator;
         this.sellEngine = sellEngine;
@@ -48,6 +49,7 @@ public class FishingListener implements Listener {
         this.rarityKey = rarityKey;
         this.weightKey = weightKey;
         this.chanceKey = chanceKey;
+        this.leaderboard = leaderboard;
     }
 
     @EventHandler
@@ -77,14 +79,87 @@ public class FishingListener implements Listener {
         ItemStack fish = generator.generateFish(luck);
         if (fish == null) return;
 
-        // ✅ Add worth lore that matches the exact sell payout
+        // Add worth lore that matches the exact sell payout
         applyWorthLore(fish);
 
         // Give fish to player
         GiveOrDrop.give(player, fish);
 
-        // Broadcast if chance < 1%
+        // Broadcast if ultra rare
         announceIfUltraRare(player, fish);
+
+        // Leaderboard hook
+        recordRarestForLeaderboard(player, fish);
+    }
+
+    private void recordRarestForLeaderboard(Player player, ItemStack fish) {
+        if (leaderboard == null) return;
+
+        ItemMeta meta = fish.getItemMeta();
+        if (meta == null) return;
+
+        var pdc = meta.getPersistentDataContainer();
+
+        // We’ll compute a "rarityValue" where HIGHER = rarer.
+        // Primary: use chance (lower chance => rarer). Convert to score: -log10(chance).
+        // Fallback: use rarity rank derived from cfg.rarities order.
+        Double chance = pdc.get(chanceKey, PersistentDataType.DOUBLE);
+        String rarityId = pdc.get(rarityKey, PersistentDataType.STRING);
+
+        double rarityValue = computeRarityValue(chance, rarityId);
+
+        // If we couldn’t compute anything meaningful, don’t write.
+        if (rarityValue <= 0) return;
+
+        // Only schedule recompute if the player's best improved:
+        // recordRarestFish only saves when higher than existing
+        double before = getCurrentRecordedRarest(player.getUniqueId());
+
+        leaderboard.recordRarestFish(player.getUniqueId(), player.getName(), rarityValue);
+
+        double after = getCurrentRecordedRarest(player.getUniqueId());
+        if (after > before) {
+            leaderboard.scheduleRecompute();
+        }
+    }
+
+    /**
+     * Read current stored value so we can know if it improved (to avoid scheduling spam).
+     */
+    private double getCurrentRecordedRarest(UUID uuid) {
+        return leaderboard.getPlayerRarestValue(uuid);
+    }
+
+    private double computeRarityValue(Double chance, String rarityId) {
+        // Primary: chance-based (best)
+        if (chance != null && chance > 0.0) {
+            // example:
+            // chance=0.01 => -log10(0.01)=2
+            // chance=0.0001 => 4 (rarer)
+            return -Math.log10(chance);
+        }
+
+        // Fallback: rarity id based
+        if (rarityId != null && !rarityId.isBlank()) {
+            FishingRarity rarity = cfg.rarities.get(rarityId);
+            if (rarity == null) {
+                for (FishingRarity r : cfg.rarities.values()) {
+                    if (r.getId().equalsIgnoreCase(rarityId)) {
+                        rarity = r;
+                        break;
+                    }
+                }
+            }
+            if (rarity != null) {
+                // Use index rank in config order (later = rarer if your config is ordered common->rare)
+                // If you want the opposite, flip it.
+                List<FishingRarity> ordered = new ArrayList<>(cfg.rarities.values());
+                int idx = ordered.indexOf(rarity);
+                if (idx >= 0) return 1.0 + idx;
+            }
+        }
+
+        return 0;
     }
 
     private void applyWorthLore(ItemStack fish) {
@@ -125,14 +200,14 @@ public class FishingListener implements Listener {
         String rarityId = pdc.get(rarityKey, PersistentDataType.STRING);
         if (chance == null || rarityId == null) return;
 
-        // ✅ Only announce these
+        // Only announce these
         boolean ultraRare =
                 rarityId.equalsIgnoreCase("MYTHIC") ||
                         rarityId.equalsIgnoreCase("DIVINE");
 
         if (!ultraRare) return;
 
-        // ✅ Lookup rarity (try exact first, then case-insensitive fallback)
+        // Lookup rarity (try exact first, then case-insensitive fallback)
         FishingRarity rarity = cfg.rarities.get(rarityId);
         if (rarity == null) {
             for (FishingRarity r : cfg.rarities.values()) {
@@ -161,5 +236,4 @@ public class FishingListener implements Listener {
 
         Bukkit.broadcastMessage(message);
     }
-
 }

@@ -4,6 +4,7 @@ import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.journal.FishingJournalGUI;
 import me.Evil.soulSMP.fishing.journal.FishingJournalHolder;
 import me.Evil.soulSMP.fishing.journal.FishingJournalManager;
+import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import org.bukkit.ChatColor;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
@@ -34,7 +35,12 @@ public class FishingJournalListener implements Listener {
     private final int prevSlot;
     private final int nextSlot;
 
-    public FishingJournalListener(Plugin plugin, FishingJournalManager journalManager, FishingConfig fishingConfig) {
+    private final LeaderboardManager leaderboard;
+
+    public FishingJournalListener(Plugin plugin,
+                                  FishingJournalManager journalManager,
+                                  FishingConfig fishingConfig,
+                                  LeaderboardManager leaderboard) {
         this.journalManager = journalManager;
         this.gui = new FishingJournalGUI(journalManager, fishingConfig);
 
@@ -45,6 +51,8 @@ public class FishingJournalListener implements Listener {
         this.depositSlot = journalManager.getJournalCfg().getInt("journal.deposit-slot", 49);
         this.prevSlot = journalManager.getJournalCfg().getInt("journal.navigation.prev.slot", 45);
         this.nextSlot = journalManager.getJournalCfg().getInt("journal.navigation.next.slot", 53);
+
+        this.leaderboard = leaderboard;
     }
 
     @EventHandler
@@ -135,7 +143,7 @@ public class FishingJournalListener implements Listener {
             return;
         }
 
-        // NEW: only allow deposit if it improves (or is first discovery)
+        // Only allow deposit if it improves (or is first discovery)
         double oldBest = journalManager.getBestWeight(playerId, entryKey);
         if (oldBest >= 0 && weight <= oldBest) {
             player.sendMessage(ChatColor.YELLOW + "Not big enough. Best is "
@@ -153,7 +161,7 @@ public class FishingJournalListener implements Listener {
             event.setCursor(cursor);
         }
 
-        // Update journal (should now always improve)
+        // Update journal (will improve)
         journalManager.updateBestWeight(playerId, entryKey, weight);
 
         if (oldBest < 0) {
@@ -162,6 +170,9 @@ public class FishingJournalListener implements Listener {
             player.sendMessage(ChatColor.AQUA + "Journal upgraded: " + entryKey
                     + " (" + String.format("%.1f", oldBest) + "lb -> " + String.format("%.1f", weight) + "lb)");
         }
+
+        // ✅ Leaderboard: journal completion changed
+        if (leaderboard != null) leaderboard.scheduleRecompute();
 
         player.openInventory(gui.createFor(player, page));
     }
@@ -182,7 +193,7 @@ public class FishingJournalListener implements Listener {
             return;
         }
 
-        // NEW: only allow deposit if it improves (or is first discovery)
+        // Only allow deposit if it improves (or is first discovery)
         double oldBest = journalManager.getBestWeight(playerId, entryKey);
         if (oldBest >= 0 && weight <= oldBest) {
             player.sendMessage(ChatColor.YELLOW + "Not big enough. Best is "
@@ -209,6 +220,9 @@ public class FishingJournalListener implements Listener {
             player.sendMessage(ChatColor.AQUA + "Journal upgraded: " + entryKey
                     + " (" + String.format("%.1f", oldBest) + "lb -> " + String.format("%.1f", weight) + "lb)");
         }
+
+        // ✅ Leaderboard: journal completion changed
+        if (leaderboard != null) leaderboard.scheduleRecompute();
 
         player.openInventory(gui.createFor(player, page));
     }

@@ -17,6 +17,9 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\fishing\journal\FishingJournalHolder.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\fishing\journal\FishingJournalManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\fishing\journal\JournalAutoGeneratorPaged.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardCommand.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardDisplay.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BankListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BannerListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BeaconEffectsListener.java
@@ -25,6 +28,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\S
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishConsumeBlockerListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishingJournalListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishingListener.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\LeaderboardProtectionListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\PlayerDeathListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\SoulTokenProtectionListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\StoreListener.java

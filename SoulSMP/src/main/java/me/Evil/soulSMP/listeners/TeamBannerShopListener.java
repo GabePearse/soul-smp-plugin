@@ -9,9 +9,6 @@ import me.Evil.soulSMP.upgrades.BeaconEffectsGui;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
 import me.Evil.soulSMP.upkeep.UpkeepStatus;
-
-
-
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -21,7 +18,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 
 import java.util.Locale;
-
 
 public class TeamBannerShopListener implements Listener {
 
@@ -95,9 +91,7 @@ public class TeamBannerShopListener implements Listener {
 
             case CLOSE -> handleClose(player);
 
-            case BACK -> {
-                player.closeInventory();
-            }
+            case BACK -> player.closeInventory();
 
             case UPKEEP -> {
                 // ✅ Always allowed for any team member
@@ -137,9 +131,7 @@ public class TeamBannerShopListener implements Listener {
 
         // Optionally re-open the shop so they see updated status
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
-
     }
-
 
     private void handleDimensionMenuOpen(Player player, Team team) {
         player.closeInventory();
@@ -171,14 +163,12 @@ public class TeamBannerShopListener implements Listener {
             case CLOSE -> TeamBannerShopGui.open(player, team, settings, upkeepManager);
             case DIMENSION_BANNER -> handleDimensionalBannerUnlock(player, currentTeam, item);
             case DIMENSION_TELEPORT -> handleDimensionalTeleport(player, currentTeam, item);
-            case BACK -> { TeamBannerShopGui.open(player, team, settings, upkeepManager); }
+            case BACK -> TeamBannerShopGui.open(player, team, settings, upkeepManager);
             default -> {
                 // ignore other types in this menu
             }
         }
     }
-
-
 
     private void handleClose(Player player) {
         player.closeInventory();
@@ -224,10 +214,9 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // ✅ Apply new radius, THEN save to teams.yml
+        // ✅ Apply new radius THROUGH TeamManager so leaderboard updates automatically
         int newRadius = currentRadius + 1;
-        team.setClaimRadius(newRadius);
-        teamManager.saveTeam(team); // <--- make sure this line exists and stays here
+        teamManager.setClaimRadius(team, newRadius);
 
         player.sendMessage(ChatColor.GREEN + "Your team's claim radius has been increased to "
                 + ChatColor.AQUA + newRadius + ChatColor.GREEN + " chunks!");
@@ -235,9 +224,7 @@ public class TeamBannerShopListener implements Listener {
 
         // Refresh the shop to show updated radius / cost
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
-
     }
-
 
     private void handleLivesPurchase(Player player, Team team, BannerShopItem item) {
         int cost = item.getBaseCost(); // flat cost (100 from YAML by default)
@@ -342,7 +329,6 @@ public class TeamBannerShopListener implements Listener {
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
-
     private void handleDimensionalTeleport(Player player, Team team, BannerShopItem item) {
         String dimKey = item.getDimensionKey();
         if (dimKey == null) {
@@ -424,8 +410,6 @@ public class TeamBannerShopListener implements Listener {
         player.sendMessage(ChatColor.GREEN + "Teleported to your "
                 + ChatColor.AQUA + niceDimensionName(dimKey) + ChatColor.GREEN + " banner.");
     }
-
-
 
     private String niceDimensionName(String dimKey) {
         if (dimKey == null) return "Unknown Dimension";

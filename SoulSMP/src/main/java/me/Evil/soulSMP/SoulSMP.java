@@ -7,6 +7,9 @@ import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.journal.FishingJournalManager;
 import me.Evil.soulSMP.fishing.journal.JournalAutoGeneratorPaged;
+import me.Evil.soulSMP.leaderboard.LeaderboardCommand;
+import me.Evil.soulSMP.leaderboard.LeaderboardDisplay;
+import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
@@ -59,6 +62,10 @@ public class SoulSMP extends JavaPlugin {
     private NamespacedKey fishWeightKey;
     private NamespacedKey fishScoreKey;
     private NamespacedKey fishChanceKey;
+
+    // Leaderboard
+    private LeaderboardManager leaderboardManager;
+    private LeaderboardDisplay leaderboardDisplay;
 
     @Override
     public void onEnable() {
@@ -132,84 +139,29 @@ public class SoulSMP extends JavaPlugin {
         // bank.yml is loaded by BankManager constructor
 
         // ---------------------------
+        // LEADERBOARD
+        // ---------------------------
+        leaderboardDisplay = new LeaderboardDisplay(this);
+        leaderboardManager = new LeaderboardManager(this, teamManager, fishingJournalManager, leaderboardDisplay);
+        teamManager.setLeaderboard(leaderboardManager);
+
+        // ---------------------------
         // COMMANDS
         // ---------------------------
-        if (getCommand("soulsmp") != null) {
-            SoulSMPCommand cmd = new SoulSMPCommand(this);
-            getCommand("soulsmp").setExecutor(cmd);
-            getCommand("soulsmp").setTabCompleter(cmd);
-        }
-
-        if (getCommand("team") != null) {
-            TeamCommand cmd = new TeamCommand(teamManager);
-            getCommand("team").setExecutor(cmd);
-            getCommand("team").setTabCompleter(cmd);
-        }
-
-        if (getCommand("token") != null) {
-            SoulTokenCommand cmd = new SoulTokenCommand(tokenManager);
-            getCommand("token").setExecutor(cmd);
-            getCommand("token").setTabCompleter(cmd);
-        }
-
-        if (getCommand("journal") != null) {
-            getCommand("journal").setExecutor(new JournalCommand(fishingJournalManager, fishingConfig));
-        }
-
-        if (getCommand("store") != null) {
-            getCommand("store").setExecutor(new StoreCommand(storeManager));
-        }
-
-        if (getCommand("fishsim") != null) {
-            getCommand("fishsim").setExecutor(new FishSimCommand(fishGenerator, fishRarityKey, fishScoreKey));
-        }
-
-        if (getCommand("bank") != null) {
-            getCommand("bank").setExecutor(new BankCommand());
-        }
+        registerCommands();
 
         // ---------------------------
         // LISTENERS
         // ---------------------------
-        Bukkit.getPluginManager().registerEvents(
-                new FishingListener(
-                        fishingConfig,
-                        fishGenerator,
-                        sellEngine,
-                        fishTypeKey,
-                        fishRarityKey,
-                        fishWeightKey,
-                        fishChanceKey
-                ),
-                this
-        );
-
-        Bukkit.getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig), this);
-        Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
-        Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
-        Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
-        Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
-
-        // Bank GUI / clicks / withdraw chat
-        Bukkit.getPluginManager().registerEvents(new BankListener(bankManager, tokenManager, teamManager), this);
+        registerListeners(sellEngine);
 
         // ---------------------------
         // TASKS
         // ---------------------------
-        BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-        auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L).getTaskId();
+        restartTasks();
 
-        long ticksPerDay = 20L * 60L * 60L * 24L;
-        upkeepTaskId = Bukkit.getScheduler()
-                .runTaskTimer(this, upkeepManager::runDailyCheck, ticksPerDay, ticksPerDay)
-                .getTaskId();
+        // Optional: update displays on boot (debounced)
+        leaderboardManager.scheduleRecompute();
 
         getLogger().info("SoulSMP enabled.");
     }
@@ -264,20 +216,80 @@ public class SoulSMP extends JavaPlugin {
         // Re-register listeners so they use the new generator/config refs
         org.bukkit.event.HandlerList.unregisterAll(this);
 
-        Bukkit.getPluginManager().registerEvents(
-                new FishingListener(
-                        fishingConfig,
-                        fishGenerator,
-                        sellEngine,
-                        fishTypeKey,
-                        fishRarityKey,
-                        fishWeightKey,
-                        fishChanceKey
-                ),
-                this
-        );
+        registerListeners(sellEngine);
+        registerCommands(); // ✅ include /lb as well
 
-        Bukkit.getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig), this);
+        // Restart tasks
+        Bukkit.getScheduler().cancelTasks(this);
+        restartTasks();
+
+        // Refresh leaderboard displays after reload (debounced)
+        if (leaderboardManager != null) leaderboardManager.scheduleRecompute();
+
+        getLogger().info("SoulSMP configuration files reloaded (including fishing_journal_data.yml).");
+    }
+
+    // -------------------------------------------------
+    // Helpers to keep enable/reload consistent
+    // -------------------------------------------------
+
+    private void registerCommands() {
+
+        if (getCommand("soulsmp") != null) {
+            SoulSMPCommand cmd = new SoulSMPCommand(this);
+            getCommand("soulsmp").setExecutor(cmd);
+            getCommand("soulsmp").setTabCompleter(cmd);
+        }
+
+        if (getCommand("team") != null) {
+            TeamCommand cmd = new TeamCommand(teamManager);
+            getCommand("team").setExecutor(cmd);
+            getCommand("team").setTabCompleter(cmd);
+        }
+
+        // NOTE: your plugin.yml defines "tc", not "teamchat".
+        // If you want /tc to work, you must register "tc".
+        if (getCommand("tc") != null) {
+            TeamChatToggleCommand cmd = new TeamChatToggleCommand(teamManager, teamChatManager);
+            getCommand("tc").setExecutor(cmd);
+        }
+
+        if (getCommand("tw") != null) {
+            TeamWhisperCommand cmd = new TeamWhisperCommand(teamManager);
+            getCommand("tw").setExecutor(cmd);
+        }
+
+        if (getCommand("token") != null) {
+            SoulTokenCommand cmd = new SoulTokenCommand(tokenManager);
+            getCommand("token").setExecutor(cmd);
+            getCommand("token").setTabCompleter(cmd);
+        }
+
+        if (getCommand("journal") != null) {
+            getCommand("journal").setExecutor(new JournalCommand(fishingJournalManager, fishingConfig));
+        }
+
+        if (getCommand("store") != null) {
+            getCommand("store").setExecutor(new StoreCommand(storeManager));
+        }
+
+        if (getCommand("fishsim") != null) {
+            getCommand("fishsim").setExecutor(new FishSimCommand(fishGenerator, fishRarityKey, fishScoreKey));
+        }
+
+        if (getCommand("bank") != null) {
+            getCommand("bank").setExecutor(new BankCommand());
+        }
+
+        if (getCommand("lb") != null) {
+            getCommand("lb").setExecutor(new LeaderboardCommand(leaderboardManager));
+        }
+    }
+
+    private void registerListeners(SellEngine sellEngine) {
+
+        Bukkit.getPluginManager().registerEvents(new FishingListener(fishingConfig, fishGenerator, sellEngine, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey, leaderboardManager), this);
+        Bukkit.getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig, leaderboardManager), this);
         Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
@@ -290,16 +302,14 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
         Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
 
+        // Leaderboard protection (banner unbreakable)
+        Bukkit.getPluginManager().registerEvents(new LeaderboardProtectionListener(leaderboardManager), this);
+
         // Bank GUI / clicks / withdraw chat
         Bukkit.getPluginManager().registerEvents(new BankListener(bankManager, tokenManager, teamManager), this);
+    }
 
-        // Update journal command executor (it references fishingJournalManager + fishingConfig)
-        if (getCommand("journal") != null) {
-            getCommand("journal").setExecutor(new JournalCommand(fishingJournalManager, fishingConfig));
-        }
-
-        // Restart tasks
-        Bukkit.getScheduler().cancelTasks(this);
+    private void restartTasks() {
 
         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
         auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L).getTaskId();
@@ -308,7 +318,5 @@ public class SoulSMP extends JavaPlugin {
         upkeepTaskId = Bukkit.getScheduler()
                 .runTaskTimer(this, upkeepManager::runDailyCheck, ticksPerDay, ticksPerDay)
                 .getTaskId();
-
-        getLogger().info("SoulSMP configuration files reloaded (including fishing_journal_data.yml).");
     }
 }

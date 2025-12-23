@@ -1,5 +1,6 @@
 package me.Evil.soulSMP.team;
 
+import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -23,9 +24,33 @@ public class TeamManager {
     private File teamsFile;
     private FileConfiguration teamsConfig;
 
+    // ✅ Optional hook so TeamManager can trigger leaderboard recomputes when claim changes
+    private LeaderboardManager leaderboard;
+
     public TeamManager(Plugin plugin) {
         this.plugin = plugin;
         initStorage(); // ✅ centralize file creation / resource copy
+    }
+
+    /** Call this once after LeaderboardManager is constructed (onEnable / reload). */
+    public void setLeaderboard(LeaderboardManager leaderboard) {
+        this.leaderboard = leaderboard;
+    }
+
+    /**
+     * Preferred way to change claim radius so leaderboard auto-updates.
+     * Use this instead of team.setClaimRadius(...) directly.
+     */
+    public void setClaimRadius(Team team, int newRadius) {
+        if (team == null) return;
+
+        int before = team.getClaimRadius();
+        team.setClaimRadius(newRadius);
+        saveTeam(team);
+
+        if (leaderboard != null && newRadius != before) {
+            leaderboard.scheduleRecompute();
+        }
     }
 
     /**
@@ -98,6 +123,9 @@ public class TeamManager {
         catch (IOException e) {
             plugin.getLogger().severe("Could not save teams.yml while disbanding: " + e.getMessage());
         }
+
+        // If team changes could impact biggest-claim leaderboard, recompute (debounced)
+        if (leaderboard != null) leaderboard.scheduleRecompute();
     }
 
     // --- Lookups ---
@@ -380,5 +408,8 @@ public class TeamManager {
             Team t = teamsByName.get(k);
             if (t != null) disbandTeam(t);
         }
+
+        // If claim radii changed across reload, recompute (debounced)
+        if (leaderboard != null) leaderboard.scheduleRecompute();
     }
 }

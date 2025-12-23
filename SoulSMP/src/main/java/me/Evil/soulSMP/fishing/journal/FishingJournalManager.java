@@ -91,6 +91,70 @@ public class FishingJournalManager {
 
         plugin.getLogger().info("Journal loaded: pages=" + pageCount + ", pagesWithEntries=" + pageEntries.size());
     }
+    /**
+     * Completion percent based on ALL possible journal combinations (RARITY:TYPE),
+     * as defined in journal.yml (pageEntries).
+     *
+     * Example: COD with 7 rarities = 7 separate combinations.
+     * Returns 0..100.
+     */
+    public double getCompletionPercent(UUID playerId) {
+        if (playerId == null) return 0.0;
+
+        int totalCombos = getTotalCombinationCount();
+        if (totalCombos <= 0) return 0.0;
+
+        int discoveredCombos = getDiscoveredCombinationCount(playerId);
+
+        if (discoveredCombos < 0) discoveredCombos = 0;
+        if (discoveredCombos > totalCombos) discoveredCombos = totalCombos;
+
+        return (discoveredCombos / (double) totalCombos) * 100.0;
+    }
+
+    /**
+     * Total number of possible combinations (RARITY:TYPE) defined across all pages in journal.yml.
+     */
+    public int getTotalCombinationCount() {
+        int total = 0;
+        for (Map<String, EntryDef> map : pageEntries.values()) {
+            total += map.size();
+        }
+        return total;
+    }
+
+    /**
+     * Number of combinations (RARITY:TYPE) the player has discovered:
+     * i.e., has an entry saved under players.<uuid>.<RARITY:TYPE> in fishing_journal_data.yml,
+     * AND that key exists in journal.yml (prevents stray keys from counting).
+     */
+    public int getDiscoveredCombinationCount(UUID playerId) {
+        if (playerId == null) return 0;
+
+        // All valid RARITY:TYPE combos from the journal definition
+        Set<String> validCombos = new HashSet<>();
+        for (Map<String, EntryDef> map : pageEntries.values()) {
+            validCombos.addAll(map.keySet());
+        }
+
+        ConfigurationSection playerSec = dataCfg.getConfigurationSection("players." + playerId);
+        if (playerSec == null) return 0;
+
+        int count = 0;
+        for (String rawKey : playerSec.getKeys(false)) {
+            String key = normalizeKey(rawKey);
+            if (key == null) continue;
+
+            if (!validCombos.contains(key)) continue;
+
+            // Your updateBestWeight stores a double, so this is the normal case
+            double weight = playerSec.getDouble(rawKey, -1);
+            if (weight >= 0) count++;
+        }
+
+        return count;
+    }
+
 
     /**
      * Supports BOTH schemas:
