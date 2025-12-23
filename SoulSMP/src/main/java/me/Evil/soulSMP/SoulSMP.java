@@ -282,7 +282,9 @@ public class SoulSMP extends JavaPlugin {
         }
 
         if (getCommand("lb") != null) {
-            getCommand("lb").setExecutor(new LeaderboardCommand(leaderboardManager));
+            LeaderboardCommand lbCmd = new LeaderboardCommand(leaderboardManager);
+            getCommand("lb").setExecutor(lbCmd);
+            getCommand("lb").setTabCompleter(lbCmd);
         }
     }
 
