@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="maven-antrun-" default="main">
+  <target name="main">
+    <exec failonerror="false" executable="cmd">
+      <arg value="/c" />
+      <arg value="D:/MinecraftServer/stop.bat" />
+    </exec>
+    <copy file="C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp-plugin\SoulSMP\target/soulsmp-1.0-SNAPSHOT.jar" tofile="D:/MinecraftServer/plugins/soulsmp-1.0-SNAPSHOT.jar" overwrite="true" />
+    <exec failonerror="false" executable="cmd">
+      <arg value="/c" />
+      <arg value="D:/MinecraftServer/start.bat" />
+    </exec>
+  </target>
+</project>

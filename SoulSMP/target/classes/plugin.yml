@@ -42,3 +42,7 @@ commands:
     description: Open the Soul Token bank
     usage: /bank
 
+  lb:
+    description: Leaderboard admin
+    usage: /lb <set|remove|recompute>
+    permission: soulsmp.admin
