@@ -24,8 +24,8 @@ commands:
     permission: soulsmp.admin
     aliases: [st, stoken, soultoken]
   soulsmp:
-    description: Primary SoulSMP command. Use to reload configuration files.
-    usage: /soulsmp reload
+    description: Primary SoulSMP command. Reload configs and spawn-building tools.
+    usage: /soulsmp reload | /soulsmp text <create|edit|line|clear|info|done|cancel>
     permission: soulsmp.admin
     aliases: [ ssmp ]
   journal:
@@ -41,7 +41,6 @@ commands:
   bank:
     description: Open the Soul Token bank
     usage: /bank
-
   lb:
     description: Leaderboard admin
     usage: /lb <set|remove|recompute>

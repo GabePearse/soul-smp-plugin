@@ -1,3 +1,4 @@
 me\Evil\soulSMP\spawn\SpawnClaimConfig.class
+me\Evil\soulSMP\commands\TextDisplayCommand.class
 me\Evil\soulSMP\spawn\SpawnClaim.class
 me\Evil\soulSMP\listeners\FirstJoinSpawnListener.class
