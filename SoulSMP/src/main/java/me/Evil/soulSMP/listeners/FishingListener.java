@@ -100,43 +100,26 @@ public class FishingListener implements Listener {
 
         var pdc = meta.getPersistentDataContainer();
 
-        // We’ll compute a "rarityValue" where HIGHER = rarer.
-        // Primary: use chance (lower chance => rarer). Convert to score: -log10(chance).
-        // Fallback: use rarity rank derived from cfg.rarities order.
+        // We store a "rarityValue" where HIGHER = rarer.
+        // IMPORTANT: LeaderboardDisplay formats this as "1 in Y",
+        // so the best value to store is denominator-like: Y = 1 / chance.
         Double chance = pdc.get(chanceKey, PersistentDataType.DOUBLE);
         String rarityId = pdc.get(rarityKey, PersistentDataType.STRING);
 
         double rarityValue = computeRarityValue(chance, rarityId);
 
-        // If we couldn’t compute anything meaningful, don’t write.
         if (rarityValue <= 0) return;
 
-        // Only schedule recompute if the player's best improved:
-        // recordRarestFish only saves when higher than existing
-        double before = getCurrentRecordedRarest(player.getUniqueId());
-
+        // recordRarestFish should handle "only if improved" logic internally
         leaderboard.recordRarestFish(player.getUniqueId(), player.getName(), rarityValue);
-
-        double after = getCurrentRecordedRarest(player.getUniqueId());
-        if (after > before) {
-            leaderboard.scheduleRecompute();
-        }
-    }
-
-    /**
-     * Read current stored value so we can know if it improved (to avoid scheduling spam).
-     */
-    private double getCurrentRecordedRarest(UUID uuid) {
-        return leaderboard.getPlayerRarestValue(uuid);
     }
 
     private double computeRarityValue(Double chance, String rarityId) {
-        // Primary: chance-based (best)
+        // Primary: chance-based
+        // chance = 0.01 -> rarityValue = 100 ("1 in 100")
+        // chance = 0.0001 -> rarityValue = 10000 ("1 in 10000")
         if (chance != null && chance > 0.0) {
-            // example:
-            // chance=0.01 => -log10(0.01)=2
-            // chance=0.0001 => 4 (rarer)
-            return -Math.log10(chance);
+            return 1.0 / chance;
         }
 
         // Fallback: rarity id based
@@ -152,7 +135,7 @@ public class FishingListener implements Listener {
             }
             if (rarity != null) {
                 // Use index rank in config order (later = rarer if your config is ordered common->rare)
-                // If you want the opposite, flip it.
+                // This produces small denominators, but it's better than nothing when chance is missing.
                 List<FishingRarity> ordered = new ArrayList<>(cfg.rarities.values());
                 int idx = ordered.indexOf(rarity);
                 if (idx >= 0) return 1.0 + idx;

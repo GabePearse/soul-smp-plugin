@@ -1,15 +1,45 @@
-upkeep:
+spawn-claim:
   enabled: true
 
-  # Base weekly upkeep in Soul Tokens
-  weekly-cost-base: 10
+  worlds:
+    - world
 
-  # Max number of weeks they can fall behind
-  max-weeks-backpay: 4
+  use-world-spawn: false
 
-  # Time thresholds (days since last upkeep payment)
-  unstable-threshold-days: 14
-  unprotected-threshold-days: 28
+  center:
+    x: 0.0
+    y: 0.0
+    z: 0.0
 
-  # Broadcast message when a team becomes Unprotected
-  unprotected-broadcast: "&4A team has lost Banner Protection due to unpaid upkeep."
+  center-yaw: 0.0
+  center-pitch: 0.0
+
+  radius-blocks: 150
+
+  first-join:
+    enabled: true
+    set-bed-spawn: true
+    world: "world"
+    debug-force: false
+
+  bypass-permission: "soulsmp.spawn.bypass"
+
+  features:
+    block-break: true
+    block-place: true
+    explosions: true
+    liquids: true
+    buckets: true
+    interact-blocks: true
+    interact-entities: true
+    damage-entities: true
+    pistons: true
+    projectiles: true
+    fishing: true
+
+  messages:
+    generic: "&cYou can't do that in Spawn."
+    block-modify: "&cYou cannot modify blocks in Spawn."
+    interact: "&cYou cannot interact here in Spawn."
+    damage: "&cYou cannot damage entities in Spawn."
+    fish: "&cYou cannot fish in Spawn."

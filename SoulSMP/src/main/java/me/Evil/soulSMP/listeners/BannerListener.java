@@ -1,34 +1,30 @@
 package me.Evil.soulSMP.listeners;
 
+import me.Evil.soulSMP.spawn.SpawnClaim;
+import me.Evil.soulSMP.spawn.SpawnClaimConfig;
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockExplodeEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.entity.EntityExplodeEvent;
-import org.bukkit.event.block.BlockFromToEvent;
-import org.bukkit.event.player.*;
-import org.bukkit.block.BlockFace;
+import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntitySpawnEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.block.BlockPistonExtendEvent;
-import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.event.entity.EntitySpawnEvent;
 
 import java.util.Locale;
-
 
 public class BannerListener implements Listener {
 
@@ -38,10 +34,33 @@ public class BannerListener implements Listener {
     private final TeamVaultManager vaultManager;
     private final NamespacedKey tntOwnerKey;
 
+    // Spawn protection
+    private final SpawnClaim spawnClaim;
+    private final SpawnClaimConfig spawnCfg;
+
     public BannerListener(JavaPlugin plugin, TeamManager teamManager, TeamVaultManager vaultManager) {
         this.teamManager = teamManager;
         this.vaultManager = vaultManager;
         this.tntOwnerKey = new NamespacedKey(plugin, "tnt_owner_team");
+
+        this.spawnClaim = new SpawnClaim(plugin);
+        this.spawnCfg = spawnClaim.config();
+    }
+
+    // =========================================================
+    // Spawn helpers
+    // =========================================================
+
+    private boolean isInSpawn(Location loc) {
+        return spawnClaim.isInSpawnClaim(loc);
+    }
+
+    private boolean isSpawnBypass(Player p) {
+        if (p == null) return false;
+        if (p.isOp()) return true;
+        return spawnCfg.bypassPermission != null
+                && !spawnCfg.bypassPermission.isBlank()
+                && p.hasPermission(spawnCfg.bypassPermission);
     }
 
     // =========================================================
@@ -49,6 +68,14 @@ public class BannerListener implements Listener {
     // =========================================================
     @EventHandler
     public void onBannerPlace(BlockPlaceEvent event) {
+
+        // Spawn protection (block placing in spawn)
+        if (spawnCfg.fBlockPlace && isInSpawn(event.getBlockPlaced().getLocation()) && !isSpawnBypass(event.getPlayer())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(spawnCfg.msgBlockModify);
+            return;
+        }
+
         Block block = event.getBlockPlaced();
         if (!block.getType().name().endsWith("_BANNER")) return;
 
@@ -114,8 +141,7 @@ public class BannerListener implements Listener {
             return;
         }
 
-        // Overworld (main claim banner) – keep your existing claim logic here
-        // Example:
+        // Overworld (main claim banner)
         if (team.hasBannerLocation()) {
             player.sendMessage(ChatColor.RED + "Your team already has a banner placed. This will just be a decoration. If you want to replace your banner use: " + ChatColor.AQUA + "/team banner remove" + ChatColor.RED + ".");
             return;
@@ -126,27 +152,32 @@ public class BannerListener implements Listener {
         player.sendMessage(ChatColor.GREEN + "Your team's main banner has been placed.");
     }
 
-
     // =========================================================
     // BLOCK BREAK – indestructible banner + claim protection
     // =========================================================
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
+
+        // Spawn protection (block breaking in spawn)
+        if (spawnCfg.fBlockBreak && isInSpawn(event.getBlock().getLocation()) && !isSpawnBypass(event.getPlayer())) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(spawnCfg.msgBlockModify);
+            return;
+        }
+
         Block block = event.getBlock();
         Player player = event.getPlayer();
 
         // 1) Protect the banner block AND its support block absolutely
-        // Banner block or its support is protected
         if (isProtectedBannerOrSupport(block)) {
             Team owningTeam = getTeamByBannerBlock(
                     block.getType().name().endsWith("_BANNER")
                             ? block
-                            : block.getRelative(0, 1, 0) // if they broke the block below, banner is above
+                            : block.getRelative(0, 1, 0)
             );
 
             event.setCancelled(true);
 
-            // Always send a feedback message when a banner (or its support) is broken.
             if (owningTeam != null) {
                 if (owningTeam.isMember(player.getUniqueId())) {
                     if (owningTeam.getOwner().equals(player.getUniqueId())) {
@@ -159,20 +190,16 @@ public class BannerListener implements Listener {
                     player.sendMessage(ChatColor.RED + "You cannot break another team's banner or its base.");
                 }
             } else {
-                // Fallback: we found a protected banner/support block but couldn't resolve a team.
-                // Still inform the player that this block is protected.
                 player.sendMessage(ChatColor.RED + "You cannot break this banner or its base.");
             }
             return;
         }
-
 
         // 2) Generic claim protection in chunks for all other blocks
         if (isProtectedClaimArea(block, player)) {
             event.setCancelled(true);
         }
     }
-
 
     // =========================================================
     // EXPLOSIONS – claim protection + special TNT logic
@@ -193,7 +220,6 @@ public class BannerListener implements Listener {
         }
 
         // 2) If no player source, infer from where the TNT was primed:
-        //    if the TNT block was inside a claim, use that claim's team.
         if (ownerTeam == null) {
             Block spawnBlock = tnt.getLocation().getBlock();
             ownerTeam = getClaimingTeam(spawnBlock);
@@ -209,6 +235,12 @@ public class BannerListener implements Listener {
     // Natural block explosions (beds, respawn anchors, etc.)
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
+
+        // Spawn protection (explosions in spawn)
+        if (spawnCfg.fExplosions) {
+            event.blockList().removeIf(b -> isInSpawn(b.getLocation()));
+        }
+
         event.blockList().removeIf(block ->
                 isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
         );
@@ -217,9 +249,15 @@ public class BannerListener implements Listener {
     // Entity explosions (TNT, creepers, withers, crystals, etc.)
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
+
+        // Spawn protection (explosions in spawn)
+        if (spawnCfg.fExplosions) {
+            event.blockList().removeIf(b -> isInSpawn(b.getLocation()));
+        }
+
         Entity entity = event.getEntity();
 
-        // Special case: TNT (primed by player, redstone, chain reactions, etc.)
+        // Special case: TNT
         if (entity instanceof TNTPrimed tnt) {
             Team sourceTeam = null;
 
@@ -244,7 +282,6 @@ public class BannerListener implements Listener {
             }
 
             // 3) If we STILL have no team -> treat as enemy TNT:
-            //    fully protect all claimed blocks and banners.
             if (sourceTeam == null) {
                 event.blockList().removeIf(block ->
                         isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
@@ -255,40 +292,31 @@ public class BannerListener implements Listener {
             final Team finalSourceTeam = sourceTeam;
 
             // 4) TNT with a known team:
-            //    - Can break blocks INSIDE that team's claim
-            //    - Cannot break blocks in OTHER teams' claims
-            //    - Banner blocks are always protected
             event.blockList().removeIf(block -> {
                 if (isProtectedBannerOrSupport(block)) {
-                    return true; // never destroy banner or its support
+                    return true;
                 }
 
                 Team claimingTeam = getClaimingTeam(block);
                 if (claimingTeam == null) {
-                    // wilderness → TNT works normally
-                    return false;
+                    return false; // wilderness
                 }
 
-                // Inside this TNT owner's claim → allowed
                 if (claimingTeam.equals(finalSourceTeam)) {
-                    return false;
+                    return false; // inside own claim
                 }
 
-                // In another team's claim → protect it
-                return true;
+                return true; // other team's claim protected
             });
 
             return;
         }
 
-        // Non-TNT explosions (creepers, withers, crystals, etc.) – fully protect claims
+        // Non-TNT explosions – fully protect claims
         event.blockList().removeIf(block ->
                 isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
         );
     }
-
-
-
 
     // =========================================================
     // LIQUID FLOW – prevent water/lava griefing into claims
@@ -296,17 +324,31 @@ public class BannerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockFromTo(BlockFromToEvent event) {
         Block from = event.getBlock();
-        Block to   = event.getToBlock();
+        Block to = event.getToBlock();
 
         Material type = from.getType();
 
-        // Only care about water/lava
         if (!isLiquid(type)) {
             return;
         }
 
+        // Spawn protection (liquid flow into/within spawn)
+        if (spawnCfg.fLiquids) {
+            boolean fromSpawn = isInSpawn(from.getLocation());
+            boolean toSpawn = isInSpawn(to.getLocation());
+
+            // stop any cross-boundary flow involving spawn
+            if (fromSpawn != toSpawn) {
+                event.setCancelled(true);
+                return;
+            }
+
+            // optional: if you want ZERO liquid updates inside spawn at all, uncomment:
+            // if (fromSpawn) { event.setCancelled(true); return; }
+        }
+
         Team fromTeam = getClaimingTeam(from);
-        Team toTeam   = getClaimingTeam(to);
+        Team toTeam = getClaimingTeam(to);
 
         // Case 1: Liquid flows from unclaimed area into a claimed area
         if (fromTeam == null && toTeam != null) {
@@ -328,19 +370,22 @@ public class BannerListener implements Listener {
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
         Player player = event.getPlayer();
 
-        // Block that was clicked
         Block clicked = event.getBlockClicked();
         if (clicked == null) {
             return;
         }
 
         BlockFace face = event.getBlockFace();
-        // This is where the water/lava source block will actually go
         Block target = clicked.getRelative(face);
 
-        // Reuse your existing claim protection logic
+        // Spawn protection (bucket empty in spawn)
+        if (spawnCfg.fBuckets && isInSpawn(target.getLocation()) && !isSpawnBypass(player)) {
+            event.setCancelled(true);
+            player.sendMessage(spawnCfg.msgBlockModify);
+            return;
+        }
+
         if (isProtectedClaimArea(target, player)) {
-            // isProtectedClaimArea already sends the "you cannot modify blocks..." message
             event.setCancelled(true);
         }
     }
@@ -348,16 +393,23 @@ public class BannerListener implements Listener {
     // =========================================================
     // INTERACTIONS WITH BLOCKS – chests, doors, buttons, etc.
     // =========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         Action action = event.getAction();
         Player player = event.getPlayer();
 
-        // Only care about clicks on blocks
         if (event.getClickedBlock() == null) return;
 
         Block block = event.getClickedBlock();
+
+        // Spawn protection (block interactions in spawn)
+        if (spawnCfg.fInteractBlocks && isInSpawn(block.getLocation()) && !isSpawnBypass(player)) {
+            if (action == Action.RIGHT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR) {
+                event.setCancelled(true);
+                player.sendMessage(spawnCfg.msgInteract);
+                return;
+            }
+        }
 
         // 1) Right-clicking a team banner opens the team vault
         if (action == Action.RIGHT_CLICK_BLOCK && isBannerBlock(block.getType())) {
@@ -365,13 +417,11 @@ public class BannerListener implements Listener {
             if (bannerTeam != null) {
                 Team playerTeam = teamManager.getTeamByPlayer(player);
 
-                // Only that team's members can access the vault
                 if (playerTeam == null || !playerTeam.equals(bannerTeam)) {
                     event.setCancelled(true);
                     return;
                 }
 
-                // Open the team vault
                 vaultManager.openVault(player, bannerTeam);
                 event.setCancelled(true);
                 return;
@@ -379,15 +429,12 @@ public class BannerListener implements Listener {
         }
 
         if (isEnemyInClaim(block.getLocation(), player)) {
-            // Cancel right‑click interactions only; left‑clicks should reach
-            // BlockBreakEvent where claim protection applies.
             if (action == Action.RIGHT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR) {
                 event.setCancelled(true);
                 player.sendMessage(ChatColor.RED + "You cannot interact with blocks inside another team's claim.");
             }
         }
     }
-
 
     // =========================================================
     // INTERACTIONS WITH ENTITIES – villagers, armor stands, etc.
@@ -396,6 +443,13 @@ public class BannerListener implements Listener {
     public void onPlayerInteractEntity(PlayerInteractEntityEvent event) {
         Player player = event.getPlayer();
         Entity entity = event.getRightClicked();
+
+        // Spawn protection
+        if (spawnCfg.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player)) {
+            event.setCancelled(true);
+            player.sendMessage(spawnCfg.msgInteract);
+            return;
+        }
 
         if (isEnemyInClaim(entity.getLocation(), player)) {
             event.setCancelled(true);
@@ -407,6 +461,13 @@ public class BannerListener implements Listener {
     public void onPlayerInteractAtEntity(PlayerInteractAtEntityEvent event) {
         Player player = event.getPlayer();
         Entity entity = event.getRightClicked();
+
+        // Spawn protection
+        if (spawnCfg.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player)) {
+            event.setCancelled(true);
+            player.sendMessage(spawnCfg.msgInteract);
+            return;
+        }
 
         if (isEnemyInClaim(entity.getLocation(), player)) {
             event.setCancelled(true);
@@ -425,6 +486,13 @@ public class BannerListener implements Listener {
 
         Entity victim = event.getEntity();
 
+        // Spawn protection
+        if (spawnCfg.fDamageEntities && isInSpawn(victim.getLocation()) && !isSpawnBypass(player)) {
+            event.setCancelled(true);
+            player.sendMessage(spawnCfg.msgDamage);
+            return;
+        }
+
         if (isEnemyInClaim(victim.getLocation(), player)) {
             event.setCancelled(true);
             player.sendMessage(ChatColor.RED + "You cannot damage entities inside another team's claim.");
@@ -439,11 +507,27 @@ public class BannerListener implements Listener {
         Block piston = event.getBlock();
         BlockFace direction = event.getDirection();
 
+        // Spawn protection
+        if (spawnCfg.fPistons) {
+            if (isInSpawn(piston.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         Team pistonTeam = getClaimingTeam(piston);
 
         for (Block moved : event.getBlocks()) {
             Block from = moved;
-            Block to   = moved.getRelative(direction);
+            Block to = moved.getRelative(direction);
+
+            // Spawn protection
+            if (spawnCfg.fPistons) {
+                if (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation())) {
+                    event.setCancelled(true);
+                    return;
+                }
+            }
 
             if (isIllegalPistonMovement(pistonTeam, from, to)) {
                 event.setCancelled(true);
@@ -452,24 +536,39 @@ public class BannerListener implements Listener {
         }
     }
 
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonRetract(BlockPistonRetractEvent event) {
         if (!event.isSticky()) {
-            return; // only sticky pistons pull blocks
+            return;
         }
 
         Block piston = event.getBlock();
         BlockFace direction = event.getDirection();
+
+        // Spawn protection
+        if (spawnCfg.fPistons) {
+            if (isInSpawn(piston.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         Team pistonTeam = getClaimingTeam(piston);
 
-        // Block being pulled is directly in front of the piston
         Block from = piston.getRelative(direction);
         if (from.getType().isAir()) {
             return;
         }
 
-        Block to = piston; // pulled into piston face
+        Block to = piston;
+
+        // Spawn protection
+        if (spawnCfg.fPistons) {
+            if (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
 
         if (isIllegalPistonMovement(pistonTeam, from, to)) {
             event.setCancelled(true);
@@ -479,37 +578,40 @@ public class BannerListener implements Listener {
     // =========================================================
     // PROJECTILES - Prevent projectiles from hitting entities in claims
     // =========================================================
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
-        // Only care about projectiles such as arrows/tridents
         Entity damager = event.getDamager();
         if (!(damager instanceof Projectile projectile)) {
             return;
         }
 
-        // Target must be a living entity (players, mobs)
         if (!(event.getEntity() instanceof LivingEntity target)) {
             return;
         }
 
-        // Determine if the target is inside a team's claim
-        Team claimTeam = getClaimingTeamAtLocation(target.getLocation());
-        if (claimTeam == null) {
-            return; // not inside a claim
+        // Spawn protection (projectiles in spawn)
+        if (spawnCfg.fProjectiles && isInSpawn(target.getLocation())) {
+            Object shooterObj = projectile.getShooter();
+            if (shooterObj instanceof Player shooter && isSpawnBypass(shooter)) {
+                return; // allow bypass
+            }
+            event.setCancelled(true);
+            return;
         }
 
-        // Figure out who fired the projectile (player, dispenser, etc.)
+        Team claimTeam = getClaimingTeamAtLocation(target.getLocation());
+        if (claimTeam == null) {
+            return;
+        }
+
         Object shooterObj = projectile.getShooter();
         Player shooter = (shooterObj instanceof Player p) ? p : null;
 
-        // If shooter is not a player (e.g. dispenser/railgun), ALWAYS block damage in claims
         if (shooter == null) {
             event.setCancelled(true);
             return;
         }
 
-        // Shooter is a player: only allow if they are on the owning team
         Team shooterTeam = teamManager.getTeamByPlayer(shooter);
         if (shooterTeam == null || !shooterTeam.equals(claimTeam)) {
             shooter.sendMessage(ChatColor.RED + "You cannot damage entities inside team '"
@@ -524,7 +626,6 @@ public class BannerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerFishInClaim(PlayerFishEvent event) {
 
-        // Block early states so the hook doesn't persist
         PlayerFishEvent.State state = event.getState();
         if (!(state == PlayerFishEvent.State.FISHING
                 || state == PlayerFishEvent.State.BITE
@@ -538,14 +639,18 @@ public class BannerListener implements Listener {
         Location hookLoc = event.getHook().getLocation();
         if (hookLoc == null) return;
 
-        // Reuse your existing claim logic
+        // Spawn protection (fishing in spawn)
+        if (spawnCfg.fFishing && isInSpawn(hookLoc) && !isSpawnBypass(event.getPlayer())) {
+            event.setCancelled(true);
+            event.getHook().remove();
+            event.getPlayer().sendMessage(spawnCfg.msgFish);
+            return;
+        }
+
         Team claimTeam = getClaimingTeamAtLocation(hookLoc);
         if (claimTeam == null) return;
 
-        // Block fishing in ANY claim (including own team)
         event.setCancelled(true);
-
-        // IMPORTANT: remove hook so the cast is consumed
         event.getHook().remove();
 
         Player player = event.getPlayer();
@@ -562,7 +667,6 @@ public class BannerListener implements Listener {
     }
 
     private boolean isLiquid(Material type) {
-        // Simple check; you can expand if you want more variants
         return type == Material.WATER
                 || type == Material.LAVA
                 || type == Material.KELP
@@ -570,18 +674,8 @@ public class BannerListener implements Listener {
                 || type == Material.BUBBLE_COLUMN;
     }
 
-    /**
-     * Returns the team whose bannerLocation is exactly at this block, or null if none.
-     */
-    // File: src/main/java/me/Evil/soulSMP/listeners/BannerListener.java
-// (only the updated helper methods are shown)
-
-    /**
-     * Returns the team whose banner block (main or dimensional) is exactly at this block, or null if none.
-     */
     private Team getTeamByBannerBlock(Block block) {
         for (Team team : teamManager.getAllTeams()) {
-            // Main overworld banner
             if (team.hasBannerLocation()) {
                 Location loc = team.getBannerLocation();
                 if (loc.getWorld() != null
@@ -593,7 +687,6 @@ public class BannerListener implements Listener {
                 }
             }
 
-            // Dimensional banners (Nether, End, etc.)
             for (Location dimLoc : team.getDimensionalBanners().values()) {
                 if (dimLoc == null || dimLoc.getWorld() == null) continue;
                 if (!dimLoc.getWorld().equals(block.getWorld())) continue;
@@ -610,14 +703,12 @@ public class BannerListener implements Listener {
 
     private boolean isProtectedBannerOrSupport(Block block) {
         for (Team team : teamManager.getAllTeams()) {
-            // Main banner
             if (team.hasBannerLocation()) {
                 if (isProtectedBannerOrSupportAt(team.getBannerLocation(), block)) {
                     return true;
                 }
             }
 
-            // Dimensional banners
             for (Location loc : team.getDimensionalBanners().values()) {
                 if (loc == null) continue;
                 if (isProtectedBannerOrSupportAt(loc, block)) {
@@ -628,9 +719,6 @@ public class BannerListener implements Listener {
         return false;
     }
 
-    /**
-     * Check protection against a specific banner location (main or dimensional).
-     */
     private boolean isProtectedBannerOrSupportAt(Location loc, Block block) {
         if (loc == null || loc.getWorld() == null) return false;
         if (!block.getWorld().equals(loc.getWorld())) return false;
@@ -639,24 +727,20 @@ public class BannerListener implements Listener {
         int by = loc.getBlockY();
         int bz = loc.getBlockZ();
 
-        // The actual banner block at this location
         Block bannerBlock = block.getWorld().getBlockAt(bx, by, bz);
         Material bannerType = bannerBlock.getType();
         boolean isWallBanner = bannerType.name().endsWith("_WALL_BANNER");
 
-        // 1) Banner block itself
         if (block.getX() == bx && block.getY() == by && block.getZ() == bz) {
             return true;
         }
 
-        // 2) SUPPORT BLOCK FOR STANDING BANNER (below)
         if (!isWallBanner) {
             if (block.getX() == bx && block.getY() == by - 1 && block.getZ() == bz) {
                 return true;
             }
         }
 
-        // 3) SUPPORT BLOCK FOR WALL BANNER (block behind the banner)
         if (bannerBlock.getState().getBlockData() instanceof org.bukkit.block.data.Directional directional) {
             Block support = bannerBlock.getRelative(directional.getFacing().getOppositeFace());
             if (block.equals(support)) {
@@ -667,17 +751,10 @@ public class BannerListener implements Listener {
         return false;
     }
 
-
-    /**
-     * Returns true if this block is inside any team's claim area (by chunks).
-     */
     private boolean isInAnyClaimArea(Block block) {
         return getClaimingTeam(block) != null;
     }
 
-    /**
-     * Returns the team whose claim area (chunk radius from banner) contains this block, or null if none.
-     */
     private Team getClaimingTeam(Block block) {
         if (teamManager.getAllTeams().isEmpty()) return null;
 
@@ -687,7 +764,7 @@ public class BannerListener implements Listener {
         for (Team team : teamManager.getAllTeams()) {
             if (!team.hasBannerLocation()) continue;
 
-            int radiusTiles = team.getClaimRadius(); // 1 = 16x16 around banner, 2 = 32x32, etc.
+            int radiusTiles = team.getClaimRadius();
             if (radiusTiles <= 0) continue;
 
             var bannerLoc = team.getBannerLocation();
@@ -696,7 +773,7 @@ public class BannerListener implements Listener {
             int bx = bannerLoc.getBlockX();
             int bz = bannerLoc.getBlockZ();
 
-            int halfSize = radiusTiles * 8; // half of 16 * radius
+            int halfSize = radiusTiles * 8;
 
             int dx = ax - bx;
             int dz = az - bz;
@@ -708,7 +785,6 @@ public class BannerListener implements Listener {
 
         return null;
     }
-
 
     private boolean isProtectedClaimArea(Block block, Player actor) {
         Team actorTeam = teamManager.getTeamByPlayer(actor);
@@ -732,158 +808,48 @@ public class BannerListener implements Listener {
             int dx = bx - cx;
             int dz = bz - cz;
 
-            // Inside this team's square claim
             if (Math.abs(dx) <= halfSize && Math.abs(dz) <= halfSize) {
-                // If actor has no team or is in another team => deny
                 if (actorTeam == null || !actorTeam.equals(team)) {
                     actor.sendMessage(ChatColor.RED + "You cannot modify blocks inside team '" +
                             team.getName() + "' claim area.");
                     return true;
                 }
-                // Their own claim → allowed
             }
         }
 
         return false;
     }
 
-
-    /**
-     * Returns the team that owns this location's claim area, or null if none.
-     */
     private Team getClaimingTeamAtLocation(Location loc) {
         if (loc == null) return null;
         Block block = loc.getBlock();
         return getClaimingTeam(block);
     }
 
-    /**
-     * Returns true if the actor is NOT on the claimingTeam that owns this location.
-     */
     private boolean isEnemyInClaim(Location loc, Player actor) {
         Team claimingTeam = getClaimingTeamAtLocation(loc);
         if (claimingTeam == null) return false;
 
         Team actorTeam = teamManager.getTeamByPlayer(actor);
-        // Enemy if no team or different team
         return actorTeam == null || !actorTeam.equals(claimingTeam);
     }
 
-    /**
-     * Returns true if moving a block from 'from' to 'to' would cross claim boundaries
-     * in a way we want to forbid.
-     *
-     * Rules:
-     * - Outside -> inside claim: illegal
-     * - Inside claim -> outside: illegal
-     * - One team's claim -> another team's claim: illegal
-     */
-    private boolean isIllegalClaimMovement(Block from, Block to) {
-        Team fromTeam = getClaimingTeam(from);
-        Team toTeam   = getClaimingTeam(to);
-
-        // From unclaimed into claimed -> illegal
-        if (fromTeam == null && toTeam != null) {
-            return true;
-        }
-
-        // From claimed into unclaimed -> illegal
-        if (fromTeam != null && toTeam == null) {
-            return true;
-        }
-
-        // From one team's claim into another team's claim -> illegal
-        if (fromTeam != null && toTeam != null && !fromTeam.equals(toTeam)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Returns true if moving a block from 'from' to 'to' via a piston
-     * should be forbidden, based on where the piston is (pistonTeam).
-     *
-     * Rules:
-     * - If piston is OUTSIDE any claim:
-     *      - Any interaction with claimed blocks (from or to) is illegal.
-     * - If piston is INSIDE a team's claim:
-     *      - It may only move blocks within:
-     *          - wilderness (null) and/or
-     *          - that same team's claim.
-     *      - Any movement involving another team's claim is illegal.
-     */
     private boolean isIllegalPistonMovement(Team pistonTeam, Block from, Block to) {
         Team fromTeam = getClaimingTeam(from);
-        Team toTeam   = getClaimingTeam(to);
+        Team toTeam = getClaimingTeam(to);
 
-        // Piston in wilderness (no claim)
         if (pistonTeam == null) {
-            // If either side touches ANY claim, that's illegal
             if (fromTeam != null || toTeam != null) {
                 return true;
             }
-            return false; // all wilderness -> allowed
+            return false;
         }
 
-        // Piston inside a team's claim
-        // It can only interact with wilderness and its own claim.
-        // Any movement involving another team's claim is illegal.
         if (fromTeam != null && !fromTeam.equals(pistonTeam)) {
             return true;
         }
         if (toTeam != null && !toTeam.equals(pistonTeam)) {
             return true;
-        }
-
-        return false;
-    }
-
-
-    /**
-     * Returns true if setting this location as `newTeam`'s banner
-     * would either:
-     *  - be within MIN_BANNER_CHUNK_SEPARATION chunks of another team's banner, OR
-     *  - cause this team's claim square to overlap another team's claim square.
-     */
-    private boolean wouldOverlapOrBeTooClose(Location newBannerLoc, Team newTeam) {
-        if (newBannerLoc == null || newBannerLoc.getWorld() == null) return false;
-
-        int newRadiusTiles = newTeam.getClaimRadius();
-        if (newRadiusTiles < 0) newRadiusTiles = 0;
-
-        int nx = newBannerLoc.getBlockX();
-        int nz = newBannerLoc.getBlockZ();
-        int newHalf = newRadiusTiles * 8; // half-size of new claim square in blocks
-
-        for (Team other : teamManager.getAllTeams()) {
-            if (other == null) continue;
-            if (!other.hasBannerLocation()) continue;
-            if (other.equals(newTeam)) continue;
-
-            Location otherLoc = other.getBannerLocation();
-            if (otherLoc == null || otherLoc.getWorld() == null) continue;
-            if (!otherLoc.getWorld().equals(newBannerLoc.getWorld())) continue;
-
-            int ox = otherLoc.getBlockX();
-            int oz = otherLoc.getBlockZ();
-
-            int otherRadiusTiles = other.getClaimRadius();
-            if (otherRadiusTiles < 0) otherRadiusTiles = 0;
-
-            int otherHalf = otherRadiusTiles * 8; // half-size of other claim square
-
-            int dx = nx - ox;
-            int dz = nz - oz;
-
-            // Maximum allowed center distance on each axis before claims are considered "too close":
-            // half of new + half of other + required gap between edges
-            int requiredCenterDistance = newHalf + otherHalf + MIN_BANNER_BLOCK_SEPARATION;
-
-            // If centers are closer than this on BOTH axes, the squares + gap overlap → too close
-            if (Math.abs(dx) <= requiredCenterDistance && Math.abs(dz) <= requiredCenterDistance) {
-                return true;
-            }
         }
 
         return false;
@@ -899,6 +865,4 @@ public class BannerListener implements Listener {
             default -> dimKey;
         };
     }
-
-
 }
