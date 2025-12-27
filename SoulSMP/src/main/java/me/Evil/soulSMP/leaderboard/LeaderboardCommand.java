@@ -1,10 +1,7 @@
 package me.Evil.soulSMP.leaderboard;
 
 import org.bukkit.ChatColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
+import org.bukkit.command.*;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -19,10 +16,6 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
         this.lb = lb;
     }
 
-    // =====================
-    // Command handling
-    // =====================
-
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (!(sender instanceof Player p)) {
@@ -30,6 +23,7 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        // Match plugin.yml (soulsmp.admin)
         if (!p.hasPermission("soulsmp.admin")) {
             p.sendMessage(ChatColor.RED + "No permission.");
             return true;
@@ -61,7 +55,7 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
                 }
 
                 p.sendMessage(ChatColor.GREEN + "Leaderboard display set: " + which);
-                lb.scheduleRecompute();
+                lb.scheduleRecompute(); // debounced
                 return true;
             }
 
@@ -71,7 +65,7 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
-            case "recompute", "update", "refresh" -> {
+            case "update" -> {
                 lb.scheduleRecompute();
                 p.sendMessage(ChatColor.GREEN + "Leaderboard recompute scheduled.");
                 return true;
@@ -88,7 +82,7 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
         p.sendMessage(ChatColor.RED + "Usage:");
         p.sendMessage(ChatColor.GRAY + "/lb set <rarest|journal|claim>");
         p.sendMessage(ChatColor.GRAY + "/lb remove");
-        p.sendMessage(ChatColor.GRAY + "/lb recompute");
+        p.sendMessage(ChatColor.GRAY + "/lb update");
     }
 
     // =====================
@@ -105,24 +99,20 @@ public class LeaderboardCommand implements CommandExecutor, TabCompleter {
 
         // /lb <subcommand>
         if (args.length == 1) {
-            List<String> subs = List.of("set", "remove", "recompute", "update", "refresh");
+            List<String> subs = List.of("set", "remove", "update");
             String current = args[0].toLowerCase(Locale.ROOT);
             for (String s : subs) {
-                if (s.startsWith(current)) {
-                    completions.add(s);
-                }
+                if (s.startsWith(current)) completions.add(s);
             }
             return completions;
         }
 
-        // /lb set <...>
+        // /lb set <rarest|journal|claim>
         if (args.length == 2 && args[0].equalsIgnoreCase("set")) {
-            List<String> subs = List.of("rarest", "journal", "claim");
+            List<String> opts = List.of("rarest", "journal", "claim");
             String current = args[1].toLowerCase(Locale.ROOT);
-            for (String s : subs) {
-                if (s.startsWith(current)) {
-                    completions.add(s);
-                }
+            for (String s : opts) {
+                if (s.startsWith(current)) completions.add(s);
             }
             return completions;
         }

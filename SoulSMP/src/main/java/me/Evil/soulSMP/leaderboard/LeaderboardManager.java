@@ -60,6 +60,45 @@ public class LeaderboardManager {
     }
 
     // -------------------------
+    // Formatting helpers
+    // -------------------------
+
+    public String formatNumber(double value, int decimals) {
+        decimals = Math.max(0, Math.min(6, decimals));
+        return String.format(Locale.ROOT, "%." + decimals + "f", value);
+    }
+
+    /**
+     * Formats rarity as "1 in Y".
+     * Supports either:
+     *  - probability p (0 < p < 1): Y = 1/p
+     *  - denominator-like values (>= 1): Y = value
+     */
+    public String formatRarityOdds(double rarityValue) {
+        if (rarityValue <= 0) return "N/A";
+
+        long denom;
+        if (rarityValue < 1.0) {
+            denom = Math.max(1L, Math.round(1.0 / rarityValue));
+        } else {
+            denom = Math.max(1L, Math.round(rarityValue));
+        }
+
+        return "1 in " + denom;
+    }
+
+    /**
+     * Convert an incoming rarity value into a "bigger = rarer" score.
+     * - If you pass probability p (0<p<1), rarer means smaller p, so score = 1/p.
+     * - If you pass an existing denominator/score (>=1), score = value.
+     */
+    private double toRarityScore(double rarityValue) {
+        if (rarityValue <= 0) return -1;
+        if (rarityValue < 1.0) return 1.0 / rarityValue; // convert probability -> denom-like
+        return rarityValue; // already denom-like/score
+    }
+
+    // -------------------------
     // Display Locations
     // -------------------------
 
@@ -130,14 +169,15 @@ public class LeaderboardManager {
     }
 
     // -------------------------
-    // Team lookup for mannequin subtitle
+    // Team name lookup for mannequin description
     // -------------------------
 
-    /** Returns team name for a player UUID, or null if none. Works for offline players. */
     public String getTeamNameForPlayer(UUID playerId) {
         if (playerId == null) return null;
         Team t = teamManager.getTeamByPlayer(playerId);
-        return (t == null || t.getName() == null || t.getName().isBlank()) ? null : t.getName();
+        if (t == null) return null;
+        String n = t.getName();
+        return (n == null || n.isBlank()) ? null : n;
     }
 
     // -------------------------
@@ -244,6 +284,7 @@ public class LeaderboardManager {
     public void scheduleRecompute() {
         if (recomputeTaskId != -1) return;
 
+        // 20 ticks = 1 sec
         recomputeTaskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             recomputeTaskId = -1;
             recomputeAndUpdateDisplays();
@@ -252,7 +293,7 @@ public class LeaderboardManager {
 
     public void recomputeAndUpdateDisplays() {
 
-        // 1) RAREST FISH CAUGHT (player)
+        // 1) RAREST FISH CAUGHT (player) - stored as denom-like score where bigger = rarer
         UUID bestRarestPlayer = null;
         double bestRarestValue = -1;
         String bestRarestName = null;
@@ -333,16 +374,30 @@ public class LeaderboardManager {
     // Hooks for recording stats
     // -------------------------
 
+    /**
+     * Call when player catches a fish.
+     * You can pass either:
+     *  - probability p (0<p<1) OR
+     *  - denominator-like odds (>=1)
+     *
+     * Internally we store a "denom-like" score where bigger = rarer.
+     */
     public void recordRarestFish(UUID player, String name, double rarityValue) {
         if (player == null) return;
 
         String p = "stats.players." + player.toString();
         data.set(p + ".name", name);
 
+        double score = toRarityScore(rarityValue);
+        if (score <= 0) return;
+
         double current = data.getDouble(p + ".rarestFishValue", -1);
-        if (rarityValue > current) {
-            data.set(p + ".rarestFishValue", rarityValue);
+        if (score > current) {
+            data.set(p + ".rarestFishValue", score);
             save();
+
+            // IMPORTANT: actually refresh the leaderboard display
+            scheduleRecompute();
         }
     }
 
@@ -356,14 +411,14 @@ public class LeaderboardManager {
     // -------------------------
 
     public void removeAllDisplays() {
+        // Kill spawned entities + blocks
         display.removeAll(this);
 
+        // Clear stored references/locations/boards
         data.set("entities", null);
         data.set("displays", null);
         data.set("boards", null);
         data.set("claimBanner", null);
-
-        // data.set("stats", null); // optional wipe
 
         save();
     }

@@ -50,7 +50,7 @@ dimension-shop:
         - "&7Place your team banner in the Nether to set it."
         - "&7Status: &e{status}"
         - "&7Cost: &b{cost} Soul Tokens"
-      base-cost: 10
+      base-cost: 100
       cost-multiplier: 1.0
 
     nether-teleport:
@@ -63,7 +63,7 @@ dimension-shop:
         - "&7Buy & use teleport to your &cNether &7banner."
         - "&7Status: &e{status}"
         - "&7Cost: &b{cost} Soul Tokens"
-      base-cost: 20
+      base-cost: 200
       cost-multiplier: 1.0
 
     end-banner:
@@ -77,7 +77,7 @@ dimension-shop:
         - "&7Place your team banner in the End to set it."
         - "&7Status: &e{status}"
         - "&7Cost: &b{cost} Soul Tokens"
-      base-cost: 15
+      base-cost: 150
       cost-multiplier: 1.0
 
     end-teleport:
@@ -90,5 +90,5 @@ dimension-shop:
         - "&7Buy & use teleport to your &5End &7banner."
         - "&7Status: &e{status}"
         - "&7Cost: &b{cost} Soul Tokens"
-      base-cost: 30
+      base-cost: 300
       cost-multiplier: 1.0

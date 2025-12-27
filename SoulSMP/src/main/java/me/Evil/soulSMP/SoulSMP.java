@@ -303,6 +303,7 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
         Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
         Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
+        Bukkit.getPluginManager().registerEvents(new FirstJoinSpawnListener(this), this);
 
         // Leaderboard protection (banner unbreakable)
         Bukkit.getPluginManager().registerEvents(new LeaderboardProtectionListener(leaderboardManager), this);
