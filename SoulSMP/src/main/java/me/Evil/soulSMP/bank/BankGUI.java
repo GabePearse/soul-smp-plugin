@@ -11,7 +11,7 @@ import java.util.List;
 
 public class BankGUI {
 
-    public static final String TITLE = ChatColor.DARK_AQUA + "Soul Bank";
+    public static final String TITLE = ChatColor.AQUA + "Soul Bank";
 
     public static void open(Player player) {
         Inventory inv = Bukkit.createInventory(new BankHolder(), 9, TITLE);

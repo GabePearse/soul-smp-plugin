@@ -8,15 +8,80 @@ sell-gui:
 
 # Material selling rules
 materials:
-  COBBLESTONE:
-    unit: 64
+  COAL:
+    unit: 576
     payout: 1
+    slot: 10
   IRON_INGOT:
-    unit: 16
+    unit: 1728 # (27 stacks)
     payout: 1
+    slot: 11
+  GOLD_INGOT:
+    unit: 1728 # (27 stacks)
+    payout: 1
+    slot: 12
+  EMERALD:
+    unit: 1728 # (27 stacks)
+    payout: 1
+    slot: 14
   DIAMOND:
-    unit: 1
+    unit: 144
     payout: 1
+    slot: 15
+  NETHERITE_INGOT:
+    unit: 72
+    payout: 1
+    slot: 16
+
+  COAL_BLOCK:
+    unit: 64
+    payout: 2
+    slot: 19
+  IRON_BLOCK:
+    unit: 192
+    payout: 1
+    slot: 20
+  GOLD_BLOCK:
+    unit: 192
+    payout: 1
+    slot: 21
+  EMERALD_BLOCK:
+    unit: 192
+    payout: 2
+    slot: 23
+  DIAMOND_BLOCK:
+    unit: 16
+    payout: 2
+    slot: 24
+  NETHERITE_BLOCK:
+    unit: 8
+    payout: 2
+    slot: 25
+
+  ENCHANTED_GOLDEN_APPLE:
+    unit: 1
+    payout: 8
+    slot: 28
+  TOTEM_OF_UNDYING:
+    unit: 1
+    payout: 16
+    slot: 29
+  HEAVY_CORE:
+    unit: 1
+    payout: 200
+    slot: 30
+  NETHER_STAR:
+    unit: 1
+    payout: 8
+    slot: 32
+  HEART_OF_THE_SEA:
+    unit: 2
+    payout: 1
+    slot: 33
+  ELYTRA:
+    unit: 1
+    payout: 175
+    slot: 34
 
 # Soul Fish selling rules
 soulfish:

@@ -11,6 +11,8 @@ import me.Evil.soulSMP.leaderboard.LeaderboardCommand;
 import me.Evil.soulSMP.leaderboard.LeaderboardDisplay;
 import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import me.Evil.soulSMP.listeners.*;
+import me.Evil.soulSMP.npc.MannequinNpcListener;
+import me.Evil.soulSMP.npc.MannequinNpcManager;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
 import me.Evil.soulSMP.store.StoreManager;
@@ -52,6 +54,9 @@ public class SoulSMP extends JavaPlugin {
     // Store
     private StoreManager storeManager;
 
+    // NPCs (Mannequin)
+    private MannequinNpcManager npcManager;
+
     // Tasks
     private int auraTaskId = -1;
     private int upkeepTaskId = -1;
@@ -66,6 +71,10 @@ public class SoulSMP extends JavaPlugin {
     // Leaderboard
     private LeaderboardManager leaderboardManager;
     private LeaderboardDisplay leaderboardDisplay;
+
+    public MannequinNpcManager getNpcManager() {
+        return npcManager;
+    }
 
     @Override
     public void onEnable() {
@@ -94,6 +103,11 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         storeManager = new StoreManager(this, tokenManager);
         SellEngine sellEngine = storeManager.getSellEngine();
+
+        // ---------------------------
+        // NPC MANAGER
+        // ---------------------------
+        npcManager = new MannequinNpcManager(this);
 
         // ---------------------------
         // FISH NBT KEYS
@@ -136,7 +150,6 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         vaultManager.loadVaults();
         teamManager.loadTeams();
-        // bank.yml is loaded by BankManager constructor
 
         // ---------------------------
         // LEADERBOARD
@@ -160,7 +173,6 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         restartTasks();
 
-        // Optional: update displays on boot (debounced)
         leaderboardManager.scheduleRecompute();
 
         getLogger().info("SoulSMP enabled.");
@@ -174,26 +186,18 @@ public class SoulSMP extends JavaPlugin {
         getLogger().info("SoulSMP disabled.");
     }
 
-    /**
-     * Call this from /ssmp reload.
-     * This will reload fishing_journal_data.yml because fishingJournalManager.reload() reloads it.
-     */
     public void reloadConfigs() {
 
-        // Reload shop settings
         bannerShopSettings = new BannerShopSettings(this);
         effectSettings = new BeaconEffectSettings(this);
         dimensionBannerShopSettings = new DimensionBannerShopSettings(this);
 
-        // Reload fishing config
         fishingConfig = new FishingConfig(this);
         fishingConfig.reload();
 
-        // Store reload (sell config etc.)
         if (storeManager != null) storeManager.reload();
         SellEngine sellEngine = storeManager.getSellEngine();
 
-        // Recreate fish generator (needs updated config + sell engine)
         fishGenerator = new CustomFishGenerator(
                 fishingConfig,
                 fishTypeKey,
@@ -204,41 +208,44 @@ public class SoulSMP extends JavaPlugin {
                 sellEngine
         );
 
-        // Regenerate journal layout (journal.yml) if you want this on reload
         JournalAutoGeneratorPaged.regenerate(this, fishingConfig);
 
-        // RELOAD .YML FILES
         if (fishingJournalManager != null) fishingJournalManager.reload();
         if (teamManager != null) teamManager.reloadTeamsFromFile();
         if (vaultManager != null) vaultManager.loadVaults();
         if (bankManager != null) bankManager.reload();
 
-        // Re-register listeners so they use the new generator/config refs
         org.bukkit.event.HandlerList.unregisterAll(this);
 
         registerListeners(sellEngine);
-        registerCommands(); // ✅ include /lb as well
+        registerCommands();
 
-        // Restart tasks
         Bukkit.getScheduler().cancelTasks(this);
         restartTasks();
 
-        // Refresh leaderboard displays after reload (debounced)
         if (leaderboardManager != null) leaderboardManager.scheduleRecompute();
 
         getLogger().info("SoulSMP configuration files reloaded (including fishing_journal_data.yml).");
     }
 
-    // -------------------------------------------------
-    // Helpers to keep enable/reload consistent
-    // -------------------------------------------------
-
     private void registerCommands() {
 
-        if (getCommand("soulsmp") != null) {
-            SoulSMPCommand cmd = new SoulSMPCommand(this);
-            getCommand("soulsmp").setExecutor(cmd);
-            getCommand("soulsmp").setTabCompleter(cmd);
+        if (getCommand("ssmp") != null) {
+            SsmpCommand cmd = new SsmpCommand(this);
+            getCommand("ssmp").setExecutor(cmd);
+            getCommand("ssmp").setTabCompleter(cmd);
+        }
+
+        if (getCommand("text") != null) {
+            TextCommand cmd = new TextCommand(this);
+            getCommand("text").setExecutor(cmd);
+            getCommand("text").setTabCompleter(cmd);
+        }
+
+        if (getCommand("npc") != null) {
+            NpcCommand cmd = new NpcCommand(this, npcManager, storeManager);
+            getCommand("npc").setExecutor(cmd);
+            getCommand("npc").setTabCompleter(cmd);
         }
 
         if (getCommand("team") != null) {
@@ -247,8 +254,6 @@ public class SoulSMP extends JavaPlugin {
             getCommand("team").setTabCompleter(cmd);
         }
 
-        // NOTE: your plugin.yml defines "tc", not "teamchat".
-        // If you want /tc to work, you must register "tc".
         if (getCommand("tc") != null) {
             TeamChatToggleCommand cmd = new TeamChatToggleCommand(teamManager, teamChatManager);
             getCommand("tc").setExecutor(cmd);
@@ -269,17 +274,11 @@ public class SoulSMP extends JavaPlugin {
             getCommand("journal").setExecutor(new JournalCommand(fishingJournalManager, fishingConfig));
         }
 
-        if (getCommand("store") != null) {
-            getCommand("store").setExecutor(new StoreCommand(storeManager));
-        }
 
         if (getCommand("fishsim") != null) {
             getCommand("fishsim").setExecutor(new FishSimCommand(fishGenerator, fishRarityKey, fishScoreKey));
         }
 
-        if (getCommand("bank") != null) {
-            getCommand("bank").setExecutor(new BankCommand());
-        }
 
         if (getCommand("lb") != null) {
             LeaderboardCommand lbCmd = new LeaderboardCommand(leaderboardManager);
@@ -293,6 +292,7 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new FishingListener(fishingConfig, fishGenerator, sellEngine, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey, leaderboardManager), this);
         Bukkit.getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig, leaderboardManager), this);
         Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
+        Bukkit.getPluginManager().registerEvents(new MannequinNpcListener(npcManager, storeManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
         Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
@@ -305,10 +305,8 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
         Bukkit.getPluginManager().registerEvents(new FirstJoinSpawnListener(this), this);
 
-        // Leaderboard protection (banner unbreakable)
         Bukkit.getPluginManager().registerEvents(new LeaderboardProtectionListener(leaderboardManager), this);
 
-        // Bank GUI / clicks / withdraw chat
         Bukkit.getPluginManager().registerEvents(new BankListener(bankManager, tokenManager, teamManager), this);
     }
 

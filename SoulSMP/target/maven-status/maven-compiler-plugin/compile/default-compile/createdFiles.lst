@@ -1,4 +1,11 @@
 me\Evil\soulSMP\spawn\SpawnClaimConfig.class
+me\Evil\soulSMP\commands\NpcCommand.class
+me\Evil\soulSMP\commands\SsmpCommand.class
+me\Evil\soulSMP\npc\MannequinNpcListener.class
+me\Evil\soulSMP\commands\TextCommand.class
+me\Evil\soulSMP\npc\MannequinNpcManager.class
 me\Evil\soulSMP\commands\TextDisplayCommand.class
 me\Evil\soulSMP\spawn\SpawnClaim.class
+me\Evil\soulSMP\npc\NpcType.class
+me\Evil\soulSMP\npc\MannequinNpcListener$1.class
 me\Evil\soulSMP\listeners\FirstJoinSpawnListener.class

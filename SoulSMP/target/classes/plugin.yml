@@ -6,9 +6,22 @@ author: Evil
 description: Team-based SMP with banner claims and Soul Token currency.
 
 commands:
+  ssmp:
+    description: SoulSMP admin command.
+    usage: /ssmp reload
+    permission: soulsmp.admin
+    aliases: [ soulsmp ]
+  text:
+    description: Spawn-building TextDisplay tools.
+    usage: /text <create|edit|line|clear|info|export|import|done|cancel>
+    permission: soulsmp.admin
+  npc:
+    description: Mannequin NPC tools (shop/bank).
+    usage: /npc <create|remove|info>
+    permission: soulsmp.admin
   team:
     description: Team management command.
-    usage: /team <create|info|leave|disband|banner|borders|invite>
+    usage: /team <create|list|info|leave|disband|banner|border|invite|accept|transfer>
     aliases: [t]
   tw:
     description: Send a message to your team.
@@ -23,24 +36,13 @@ commands:
     usage: /token give <player> <amount>
     permission: soulsmp.admin
     aliases: [st, stoken, soultoken]
-  soulsmp:
-    description: Primary SoulSMP command. Reload configs and spawn-building tools.
-    usage: /soulsmp reload | /soulsmp text <create|edit|line|clear|info|done|cancel>
-    permission: soulsmp.admin
-    aliases: [ ssmp ]
   journal:
     description: Opens the Fishing Journal
     usage: /journal
     aliases: [ fj, fishingjournal ]
-  store:
-    usage: /store
-    description: Open the player store.
   fishsim:
     description: Simulate fish generation and print score statistics + sell multiplier suggestions.
     usage: /fishsim [samples] [luck]
-  bank:
-    description: Open the Soul Token bank
-    usage: /bank
   lb:
     description: Leaderboard admin
     usage: /lb <set|remove|recompute>

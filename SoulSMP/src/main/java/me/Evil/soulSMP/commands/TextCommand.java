@@ -20,7 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
 
-public class SoulSMPCommand implements CommandExecutor, TabCompleter {
+public class TextCommand implements CommandExecutor, TabCompleter {
 
     private final SoulSMP plugin;
 
@@ -31,7 +31,7 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
     private static final String EXPORT_DIR = "text_exports";
     private static final Pattern SAFE_NAME = Pattern.compile("^[a-zA-Z0-9._-]{1,64}$");
 
-    public SoulSMPCommand(SoulSMP plugin) {
+    public TextCommand(SoulSMP plugin) {
         this.plugin = plugin;
     }
 
@@ -39,41 +39,6 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(CommandSender sender, Command command,
                              String label, String[] args) {
 
-        if (args.length == 0) {
-            sendUsage(sender, label);
-            return true;
-        }
-
-        String sub = args[0].toLowerCase();
-
-        if (sub.equals("reload")) {
-            if (!sender.hasPermission("soulsmp.admin")) {
-                sender.sendMessage(ChatColor.RED + "You do not have permission to reload SoulSMP configuration files.");
-                return true;
-            }
-            plugin.reloadConfigs();
-            sender.sendMessage(ChatColor.GREEN + "SoulSMP configuration files reloaded.");
-            return true;
-        }
-
-        if (sub.equals("text")) {
-            return handleText(sender, label, args);
-        }
-
-        sendUsage(sender, label);
-        return true;
-    }
-
-    private void sendUsage(CommandSender sender, String label) {
-        sender.sendMessage(ChatColor.YELLOW + "Usage:");
-        sender.sendMessage(ChatColor.YELLOW + "/" + label + " reload");
-        sender.sendMessage(ChatColor.YELLOW + "/" + label + " text <create|edit|line|clear|info|export|import|done|cancel>");
-        sender.sendMessage(ChatColor.GRAY + "Tip: /" + label + " text line <n> empty  -> inserts a blank line");
-        sender.sendMessage(ChatColor.GRAY + "Files: /" + label + " text export <name>  |  /" + label + " text import <name>");
-        sender.sendMessage(ChatColor.DARK_GRAY + "Saved under: plugins/SoulSMP/" + EXPORT_DIR + "/<name>.txt");
-    }
-
-    private boolean handleText(CommandSender sender, String label, String[] args) {
         if (!(sender instanceof Player p)) {
             sender.sendMessage(ChatColor.RED + "This command can only be used by players.");
             return true;
@@ -84,12 +49,12 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args.length < 2) {
-            p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text <create|edit|line|clear|info|export|import|done|cancel>");
+        if (args.length == 0) {
+            sendUsage(p, label);
             return true;
         }
 
-        String action = args[1].toLowerCase();
+        String action = args[0].toLowerCase(Locale.ROOT);
 
         switch (action) {
 
@@ -109,11 +74,11 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                 textEditSessions.put(p.getUniqueId(), new TextDisplayCommand(p.getUniqueId(), td));
 
                 p.sendMessage(ChatColor.GREEN + "Created a TextDisplay and entered edit mode.");
-                p.sendMessage(ChatColor.GRAY + "Use: " + ChatColor.AQUA + "/" + label + " text line <#> <text>");
-                p.sendMessage(ChatColor.GRAY + "Blank line: " + ChatColor.AQUA + "/" + label + " text line <#> empty");
-                p.sendMessage(ChatColor.GRAY + "Export to chat: " + ChatColor.AQUA + "/" + label + " text export");
-                p.sendMessage(ChatColor.GRAY + "Import from file: " + ChatColor.AQUA + "/" + label + " text import <name>");
-                p.sendMessage(ChatColor.GRAY + "Finish: " + ChatColor.AQUA + "/" + label + " text done");
+                p.sendMessage(ChatColor.GRAY + "Use: " + ChatColor.AQUA + "/" + label + " line <#> <text>");
+                p.sendMessage(ChatColor.GRAY + "Blank line: " + ChatColor.AQUA + "/" + label + " line <#> empty");
+                p.sendMessage(ChatColor.GRAY + "Export to file: " + ChatColor.AQUA + "/" + label + " export <name>");
+                p.sendMessage(ChatColor.GRAY + "Import from file: " + ChatColor.AQUA + "/" + label + " import <name>");
+                p.sendMessage(ChatColor.GRAY + "Finish: " + ChatColor.AQUA + "/" + label + " done");
                 return true;
             }
 
@@ -129,27 +94,27 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                 textEditSessions.put(p.getUniqueId(), session);
 
                 p.sendMessage(ChatColor.GREEN + "Now editing that TextDisplay.");
-                p.sendMessage(ChatColor.GRAY + "Use: " + ChatColor.AQUA + "/" + label + " text info" + ChatColor.GRAY + " to see current lines.");
-                p.sendMessage(ChatColor.GRAY + "Use: " + ChatColor.AQUA + "/" + label + " text export" + ChatColor.GRAY + " to copy raw commands.");
+                p.sendMessage(ChatColor.GRAY + "Use: " + ChatColor.AQUA + "/" + label + " info" + ChatColor.GRAY + " to see current lines.");
+                p.sendMessage(ChatColor.GRAY + "Export to file: " + ChatColor.AQUA + "/" + label + " export <name>");
                 return true;
             }
 
             case "line" -> {
                 TextDisplayCommand session = textEditSessions.get(p.getUniqueId());
                 if (session == null) {
-                    p.sendMessage(ChatColor.RED + "You are not editing a TextDisplay. Use /" + label + " text create or /" + label + " text edit.");
+                    p.sendMessage(ChatColor.RED + "You are not editing a TextDisplay. Use /" + label + " create or /" + label + " edit.");
                     return true;
                 }
 
-                if (args.length < 3) {
-                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text line <lineNumber> <text>");
+                if (args.length < 2) {
+                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " line <lineNumber> <text>");
                     p.sendMessage(ChatColor.GRAY + "Use '" + ChatColor.AQUA + "empty" + ChatColor.GRAY + "' to insert a blank line.");
                     return true;
                 }
 
                 int lineNumber;
                 try {
-                    lineNumber = Integer.parseInt(args[2]);
+                    lineNumber = Integer.parseInt(args[1]);
                 } catch (NumberFormatException ex) {
                     p.sendMessage(ChatColor.RED + "Line number must be a number (1, 2, 3...).");
                     return true;
@@ -160,12 +125,12 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
 
-                // Allow: /ssmp text line <n>   (no text) -> blank line
+                // Allow: /text line <n>   (no text) -> blank line
                 String raw;
-                if (args.length == 3) {
+                if (args.length == 2) {
                     raw = "&r";
                 } else {
-                    raw = String.join(" ", Arrays.copyOfRange(args, 3, args.length)).trim();
+                    raw = String.join(" ", Arrays.copyOfRange(args, 2, args.length)).trim();
                     if (raw.equalsIgnoreCase("empty") || raw.equalsIgnoreCase("<empty>")) {
                         raw = "&r";
                     }
@@ -184,14 +149,14 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ChatColor.RED + "You are not editing a TextDisplay.");
                     return true;
                 }
-                if (args.length < 3) {
-                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text clear <lineNumber>");
+                if (args.length < 2) {
+                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " clear <lineNumber>");
                     return true;
                 }
 
                 int lineNumber;
                 try {
-                    lineNumber = Integer.parseInt(args[2]);
+                    lineNumber = Integer.parseInt(args[1]);
                 } catch (NumberFormatException ex) {
                     p.sendMessage(ChatColor.RED + "Line number must be a number (1, 2, 3...).");
                     return true;
@@ -235,12 +200,12 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                     p.sendMessage(ChatColor.RED + "You are not editing a TextDisplay.");
                     return true;
                 }
-                if (args.length < 3) {
-                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text export <name>");
+                if (args.length < 2) {
+                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " export <name>");
                     return true;
                 }
 
-                String name = args[2].trim();
+                String name = args[1].trim();
                 if (!SAFE_NAME.matcher(name).matches()) {
                     p.sendMessage(ChatColor.RED + "Invalid name. Use only letters, numbers, dot, underscore, dash (max 64).");
                     return true;
@@ -256,7 +221,8 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
 
                 List<String> lines = session.getLines();
                 try (BufferedWriter w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(out), StandardCharsets.UTF_8))) {
-                    w.write("/" + label + " text create");
+                    w.write("/" + label + " create");
+                    w.newLine();
                     w.newLine();
 
                     for (int i = 0; i < lines.size(); i++) {
@@ -264,14 +230,14 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                         int lineNo = i + 1;
 
                         if (line == null || line.isEmpty() || isOnlyReset(line)) {
-                            w.write("/" + label + " text line " + lineNo + " empty");
+                            w.write("/" + label + " line " + lineNo + " empty");
                         } else {
-                            w.write("/" + label + " text line " + lineNo + " " + sectionToAmpersand(line));
+                            w.write("/" + label + " line " + lineNo + " " + sectionToAmpersand(line));
                         }
                         w.newLine();
                     }
 
-                    w.write("/" + label + " text done");
+                    w.write("/" + label + " done");
                     w.newLine();
                 } catch (IOException e) {
                     p.sendMessage(ChatColor.RED + "Failed to write file: " + e.getMessage());
@@ -279,17 +245,17 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                 }
 
                 p.sendMessage(ChatColor.GREEN + "Exported to file: " + ChatColor.AQUA + out.getPath());
-                p.sendMessage(ChatColor.GRAY + "Edit it, then run: " + ChatColor.AQUA + "/" + label + " text import " + name);
+                p.sendMessage(ChatColor.GRAY + "Edit it, then run: " + ChatColor.AQUA + "/" + label + " import " + name);
                 return true;
             }
 
             case "import" -> {
-                if (args.length < 3) {
-                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text import <name>");
+                if (args.length < 2) {
+                    p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " import <name>");
                     return true;
                 }
 
-                String name = args[2].trim();
+                String name = args[1].trim();
                 if (!SAFE_NAME.matcher(name).matches()) {
                     p.sendMessage(ChatColor.RED + "Invalid name. Use only letters, numbers, dot, underscore, dash (max 64).");
                     return true;
@@ -318,9 +284,13 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
                         if (cmdLine.startsWith("/")) cmdLine = cmdLine.substring(1).trim();
                         if (cmdLine.isEmpty()) continue;
 
-                        // Safety: only allow THIS plugin's base command (label or "ssmp") + optional alias.
-                        // Accept: "<label> ..." OR "ssmp ..."
-                        if (!startsWithIgnoreCase(cmdLine, label + " ") && !startsWithIgnoreCase(cmdLine, "ssmp ")) {
+                        // Safety: accept only "text ..." OR legacy "ssmp text ..."
+                        boolean okPrefix =
+                                startsWithIgnoreCase(cmdLine, label + " ") ||
+                                        startsWithIgnoreCase(cmdLine, "text ") ||
+                                        startsWithIgnoreCase(cmdLine, "ssmp text ");
+
+                        if (!okPrefix) {
                             skipped++;
                             continue;
                         }
@@ -359,10 +329,18 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
             }
 
             default -> {
-                p.sendMessage(ChatColor.YELLOW + "Usage: /" + label + " text <create|edit|line|clear|info|export|import|done|cancel>");
+                sendUsage(p, label);
                 return true;
             }
         }
+    }
+
+    private void sendUsage(CommandSender sender, String label) {
+        sender.sendMessage(ChatColor.YELLOW + "Usage:");
+        sender.sendMessage(ChatColor.YELLOW + "/" + label + " <create|edit|line|clear|info|export|import|done|cancel>");
+        sender.sendMessage(ChatColor.GRAY + "Tip: /" + label + " line <n> empty  -> inserts a blank line");
+        sender.sendMessage(ChatColor.GRAY + "Files: /" + label + " export <name>  |  /" + label + " import <name>");
+        sender.sendMessage(ChatColor.DARK_GRAY + "Saved under: plugins/SoulSMP/" + EXPORT_DIR + "/<name>.txt");
     }
 
     /**
@@ -415,25 +393,18 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            String a0 = args[0].toLowerCase();
-            if ("reload".startsWith(a0)) completions.add("reload");
-            if ("text".startsWith(a0)) completions.add("text");
-            return completions;
-        }
-
-        if (args.length == 2 && args[0].equalsIgnoreCase("text")) {
-            String a1 = args[1].toLowerCase();
+            String a0 = args[0].toLowerCase(Locale.ROOT);
             for (String s : List.of("create", "edit", "line", "clear", "info", "export", "import", "done", "cancel")) {
-                if (s.startsWith(a1)) completions.add(s);
+                if (s.startsWith(a0)) completions.add(s);
             }
             return completions;
         }
 
-        // Suggest "empty" for /ssmp text line <n> ...
-        if (args.length == 4 && args[0].equalsIgnoreCase("text") && args[1].equalsIgnoreCase("line")) {
-            String a3 = args[3].toLowerCase();
-            if ("empty".startsWith(a3)) completions.add("empty");
-            if ("<empty>".startsWith(a3)) completions.add("<empty>");
+        // Suggest "empty" for /text line <n> ...
+        if (args.length == 3 && args[0].equalsIgnoreCase("line")) {
+            String a2 = args[2].toLowerCase(Locale.ROOT);
+            if ("empty".startsWith(a2)) completions.add("empty");
+            if ("<empty>".startsWith(a2)) completions.add("<empty>");
         }
 
         return completions;
