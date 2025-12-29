@@ -14,11 +14,11 @@ import java.util.Locale;
 /**
  * /ssmp reload
  */
-public class SsmpCommand implements CommandExecutor, TabCompleter {
+public class SoulSMPCommand implements CommandExecutor, TabCompleter {
 
     private final SoulSMP plugin;
 
-    public SsmpCommand(SoulSMP plugin) {
+    public SoulSMPCommand(SoulSMP plugin) {
         this.plugin = plugin;
     }
 

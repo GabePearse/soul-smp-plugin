@@ -231,7 +231,7 @@ public class SoulSMP extends JavaPlugin {
     private void registerCommands() {
 
         if (getCommand("ssmp") != null) {
-            SsmpCommand cmd = new SsmpCommand(this);
+            SoulSMPCommand cmd = new SoulSMPCommand(this);
             getCommand("ssmp").setExecutor(cmd);
             getCommand("ssmp").setTabCompleter(cmd);
         }
