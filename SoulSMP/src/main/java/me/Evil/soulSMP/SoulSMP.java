@@ -285,6 +285,11 @@ public class SoulSMP extends JavaPlugin {
             getCommand("lb").setExecutor(lbCmd);
             getCommand("lb").setTabCompleter(lbCmd);
         }
+
+        if (getCommand("stuck") != null) {
+            StuckCommand stuckCommand = new StuckCommand(this);
+            getCommand("stuck").setExecutor(stuckCommand);
+        }
     }
 
     private void registerListeners(SellEngine sellEngine) {

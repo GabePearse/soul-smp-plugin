@@ -71,11 +71,11 @@ public class MannequinNpcManager {
         tag(m, type);
 
         m.setInvulnerable(true);
-        m.setGlowing(true);
         m.setAI(false);
         m.setSilent(true);
         m.setImmovable(true);
         m.setPersistent(true);
+
 
         if (nameComponent != null) {
             m.customName(nameComponent);

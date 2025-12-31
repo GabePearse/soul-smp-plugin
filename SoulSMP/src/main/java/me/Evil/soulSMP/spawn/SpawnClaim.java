@@ -21,16 +21,17 @@ public class SpawnClaim {
         if (loc == null || loc.getWorld() == null) return false;
 
         World w = loc.getWorld();
-        if (!cfg.worlds.isEmpty() && !cfg.worlds.contains(w.getName())) return false;
+        SpawnClaimConfig.WorldSettings s = cfg.getSettings(w.getName());
+        if (s == null) return false; // not enabled for this world
 
-        Location center = cfg.useWorldSpawn
+        Location center = s.useWorldSpawn
                 ? w.getSpawnLocation()
-                : new Location(w, cfg.centerX + 0.5, cfg.centerY + 0.5, cfg.centerZ + 0.5);
+                : new Location(w, s.centerX + 0.5, s.centerY + 0.5, s.centerZ + 0.5);
 
         double dx = loc.getX() - center.getX();
         double dz = loc.getZ() - center.getZ();
 
-        double r = cfg.radiusBlocks;
+        double r = s.radiusBlocks;
         return (dx * dx + dz * dz) <= (r * r);
     }
 }

@@ -48,19 +48,49 @@ public class BannerListener implements Listener {
     }
 
     // =========================================================
-    // Spawn helpers
+    // Spawn helpers (PER-WORLD)
     // =========================================================
 
-    private boolean isInSpawn(Location loc) {
-        return spawnClaim.isInSpawnClaim(loc);
+    /**
+     * Returns per-world settings for the given location, or null if:
+     * - spawn-claim disabled
+     * - loc/world null
+     * - this world isn't configured under spawn-claim.per-world
+     */
+    private SpawnClaimConfig.WorldSettings spawnSettings(Location loc) {
+        if (loc == null || loc.getWorld() == null) return null;
+        if (!spawnCfg.enabled) return null;
+        return spawnCfg.getSettings(loc.getWorld().getName());
     }
 
-    private boolean isSpawnBypass(Player p) {
+    private boolean isInSpawn(Location loc) {
+        // if world not configured -> not spawn protected
+        return spawnSettings(loc) != null && spawnClaim.isInSpawnClaim(loc);
+    }
+
+    private boolean isSpawnBypass(Player p, Location at) {
         if (p == null) return false;
         if (p.isOp()) return true;
-        return spawnCfg.bypassPermission != null
-                && !spawnCfg.bypassPermission.isBlank()
-                && p.hasPermission(spawnCfg.bypassPermission);
+
+        SpawnClaimConfig.WorldSettings s = spawnSettings(at);
+        if (s == null) return false;
+
+        return s.bypassPermission != null
+                && !s.bypassPermission.isBlank()
+                && p.hasPermission(s.bypassPermission);
+    }
+
+    // Convenience message helpers (avoid NPE if world not configured)
+    private void sendSpawnMsg(Player p, Location at, String fallback) {
+        if (p == null) return;
+        SpawnClaimConfig.WorldSettings s = spawnSettings(at);
+        if (s == null) {
+            if (fallback != null && !fallback.isBlank()) p.sendMessage(fallback);
+            return;
+        }
+        // use generic if you pass null
+        if (fallback == null) p.sendMessage(s.msgGeneric);
+        else p.sendMessage(fallback);
     }
 
     // =========================================================
@@ -69,10 +99,12 @@ public class BannerListener implements Listener {
     @EventHandler
     public void onBannerPlace(BlockPlaceEvent event) {
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(event.getBlockPlaced().getLocation());
+
         // Spawn protection (block placing in spawn)
-        if (spawnCfg.fBlockPlace && isInSpawn(event.getBlockPlaced().getLocation()) && !isSpawnBypass(event.getPlayer())) {
+        if (s != null && s.fBlockPlace && isInSpawn(event.getBlockPlaced().getLocation()) && !isSpawnBypass(event.getPlayer(), event.getBlockPlaced().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(spawnCfg.msgBlockModify);
+            event.getPlayer().sendMessage(s.msgBlockModify);
             return;
         }
 
@@ -98,14 +130,10 @@ public class BannerListener implements Listener {
 
         // 2) If this banner does NOT match the team design, it is decorative → allow silently
         if (!team.matchesBannerDesign(inHand)) {
-            // DO NOT cancel the event
-            // Just let it be a normal decorative banner
             return;
         }
 
-        // 3) From here down, it IS an official team banner (matches design)
-        //    Now apply your existing claim or dimensional logic.
-
+        // 3) Official team banner
         World world = block.getWorld();
         World.Environment env = world.getEnvironment();
         Location loc = block.getLocation().add(0.5, 0, 0.5); // nice centered location
@@ -119,18 +147,16 @@ public class BannerListener implements Listener {
 
         // Non-overworld dimensional banners
         if (dimKey != null && env != World.Environment.NORMAL) {
-            // Must have purchased the dimension
             if (!team.hasDimensionalBannerUnlocked(dimKey)) {
                 player.sendMessage(ChatColor.GRAY + "Your team hasn't bought the "
                         + niceDimensionName(dimKey) + " banner upgrade. This banner is decorative only.");
-                // Don't cancel; it will just be decoration.
                 return;
             }
 
             if (team.hasDimensionalBannerLocation(dimKey)) {
                 player.sendMessage(ChatColor.YELLOW + "Your team already has a "
                         + niceDimensionName(dimKey) + " banner. Break the old one first.");
-                event.setCancelled(true); // prevent accidentally placing a second official one
+                event.setCancelled(true);
                 return;
             }
 
@@ -158,10 +184,12 @@ public class BannerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     public void onBlockBreak(BlockBreakEvent event) {
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(event.getBlock().getLocation());
+
         // Spawn protection (block breaking in spawn)
-        if (spawnCfg.fBlockBreak && isInSpawn(event.getBlock().getLocation()) && !isSpawnBypass(event.getPlayer())) {
+        if (s != null && s.fBlockBreak && isInSpawn(event.getBlock().getLocation()) && !isSpawnBypass(event.getPlayer(), event.getBlock().getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(spawnCfg.msgBlockModify);
+            event.getPlayer().sendMessage(s.msgBlockModify);
             return;
         }
 
@@ -213,19 +241,16 @@ public class BannerListener implements Listener {
 
         Team ownerTeam = null;
 
-        // 1) If there is a player source, use their team
         Entity source = tnt.getSource();
         if (source instanceof Player sourcePlayer) {
             ownerTeam = teamManager.getTeamByPlayer(sourcePlayer);
         }
 
-        // 2) If no player source, infer from where the TNT was primed:
         if (ownerTeam == null) {
             Block spawnBlock = tnt.getLocation().getBlock();
             ownerTeam = getClaimingTeam(spawnBlock);
         }
 
-        // 3) If we found an owning team, store it on the TNT entity
         if (ownerTeam != null) {
             PersistentDataContainer pdc = tnt.getPersistentDataContainer();
             pdc.set(tntOwnerKey, PersistentDataType.STRING, ownerTeam.getName());
@@ -236,8 +261,10 @@ public class BannerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(event.getBlock().getLocation());
+
         // Spawn protection (explosions in spawn)
-        if (spawnCfg.fExplosions) {
+        if (s != null && s.fExplosions) {
             event.blockList().removeIf(b -> isInSpawn(b.getLocation()));
         }
 
@@ -250,8 +277,10 @@ public class BannerListener implements Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(event.getEntity().getLocation());
+
         // Spawn protection (explosions in spawn)
-        if (spawnCfg.fExplosions) {
+        if (s != null && s.fExplosions) {
             event.blockList().removeIf(b -> isInSpawn(b.getLocation()));
         }
 
@@ -261,7 +290,6 @@ public class BannerListener implements Listener {
         if (entity instanceof TNTPrimed tnt) {
             Team sourceTeam = null;
 
-            // 1) Try to read tagged owner from the TNT entity
             PersistentDataContainer pdc = tnt.getPersistentDataContainer();
             String teamName = pdc.get(tntOwnerKey, PersistentDataType.STRING);
             if (teamName != null) {
@@ -273,7 +301,6 @@ public class BannerListener implements Listener {
                 }
             }
 
-            // 2) Fallback: for legacy / untagged TNT, use player source (if any)
             if (sourceTeam == null) {
                 Entity source = tnt.getSource();
                 if (source instanceof Player sourcePlayer) {
@@ -281,7 +308,6 @@ public class BannerListener implements Listener {
                 }
             }
 
-            // 3) If we STILL have no team -> treat as enemy TNT:
             if (sourceTeam == null) {
                 event.blockList().removeIf(block ->
                         isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
@@ -291,7 +317,6 @@ public class BannerListener implements Listener {
 
             final Team finalSourceTeam = sourceTeam;
 
-            // 4) TNT with a known team:
             event.blockList().removeIf(block -> {
                 if (isProtectedBannerOrSupport(block)) {
                     return true;
@@ -299,20 +324,19 @@ public class BannerListener implements Listener {
 
                 Team claimingTeam = getClaimingTeam(block);
                 if (claimingTeam == null) {
-                    return false; // wilderness
+                    return false;
                 }
 
                 if (claimingTeam.equals(finalSourceTeam)) {
-                    return false; // inside own claim
+                    return false;
                 }
 
-                return true; // other team's claim protected
+                return true;
             });
 
             return;
         }
 
-        // Non-TNT explosions – fully protect claims
         event.blockList().removeIf(block ->
                 isProtectedBannerOrSupport(block) || isInAnyClaimArea(block)
         );
@@ -332,31 +356,34 @@ public class BannerListener implements Listener {
             return;
         }
 
+        SpawnClaimConfig.WorldSettings sFrom = spawnSettings(from.getLocation());
+        SpawnClaimConfig.WorldSettings sTo = spawnSettings(to.getLocation());
+
         // Spawn protection (liquid flow into/within spawn)
-        if (spawnCfg.fLiquids) {
+        if (sFrom != null || sTo != null) {
+            // only enforce if either side is in a configured spawn-claim world
             boolean fromSpawn = isInSpawn(from.getLocation());
             boolean toSpawn = isInSpawn(to.getLocation());
 
-            // stop any cross-boundary flow involving spawn
             if (fromSpawn != toSpawn) {
-                event.setCancelled(true);
-                return;
+                // block cross-boundary flow involving spawn
+                // only if the world settings say liquids protection is on (use whichever side is configured)
+                boolean liquidsOn = (sFrom != null && sFrom.fLiquids) || (sTo != null && sTo.fLiquids);
+                if (liquidsOn) {
+                    event.setCancelled(true);
+                    return;
+                }
             }
-
-            // optional: if you want ZERO liquid updates inside spawn at all, uncomment:
-            // if (fromSpawn) { event.setCancelled(true); return; }
         }
 
         Team fromTeam = getClaimingTeam(from);
         Team toTeam = getClaimingTeam(to);
 
-        // Case 1: Liquid flows from unclaimed area into a claimed area
         if (fromTeam == null && toTeam != null) {
             event.setCancelled(true);
             return;
         }
 
-        // Case 2: Liquid flows from one team's claim into another team's claim
         if (fromTeam != null && toTeam != null && !fromTeam.equals(toTeam)) {
             event.setCancelled(true);
             return;
@@ -378,10 +405,12 @@ public class BannerListener implements Listener {
         BlockFace face = event.getBlockFace();
         Block target = clicked.getRelative(face);
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(target.getLocation());
+
         // Spawn protection (bucket empty in spawn)
-        if (spawnCfg.fBuckets && isInSpawn(target.getLocation()) && !isSpawnBypass(player)) {
+        if (s != null && s.fBuckets && isInSpawn(target.getLocation()) && !isSpawnBypass(player, target.getLocation())) {
             event.setCancelled(true);
-            player.sendMessage(spawnCfg.msgBlockModify);
+            player.sendMessage(s.msgBlockModify);
             return;
         }
 
@@ -402,11 +431,13 @@ public class BannerListener implements Listener {
 
         Block block = event.getClickedBlock();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(block.getLocation());
+
         // Spawn protection (block interactions in spawn)
-        if (spawnCfg.fInteractBlocks && isInSpawn(block.getLocation()) && !isSpawnBypass(player)) {
+        if (s != null && s.fInteractBlocks && isInSpawn(block.getLocation()) && !isSpawnBypass(player, block.getLocation())) {
             if (action == Action.RIGHT_CLICK_BLOCK || action == Action.RIGHT_CLICK_AIR) {
                 event.setCancelled(true);
-                player.sendMessage(spawnCfg.msgInteract);
+                player.sendMessage(s.msgInteract);
                 return;
             }
         }
@@ -444,10 +475,12 @@ public class BannerListener implements Listener {
         Player player = event.getPlayer();
         Entity entity = event.getRightClicked();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(entity.getLocation());
+
         // Spawn protection
-        if (spawnCfg.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player)) {
+        if (s != null && s.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player, entity.getLocation())) {
             event.setCancelled(true);
-            player.sendMessage(spawnCfg.msgInteract);
+            player.sendMessage(s.msgInteract);
             return;
         }
 
@@ -462,10 +495,12 @@ public class BannerListener implements Listener {
         Player player = event.getPlayer();
         Entity entity = event.getRightClicked();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(entity.getLocation());
+
         // Spawn protection
-        if (spawnCfg.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player)) {
+        if (s != null && s.fInteractEntities && isInSpawn(entity.getLocation()) && !isSpawnBypass(player, entity.getLocation())) {
             event.setCancelled(true);
-            player.sendMessage(spawnCfg.msgInteract);
+            player.sendMessage(s.msgInteract);
             return;
         }
 
@@ -486,10 +521,12 @@ public class BannerListener implements Listener {
 
         Entity victim = event.getEntity();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(victim.getLocation());
+
         // Spawn protection
-        if (spawnCfg.fDamageEntities && isInSpawn(victim.getLocation()) && !isSpawnBypass(player)) {
+        if (s != null && s.fDamageEntities && isInSpawn(victim.getLocation()) && !isSpawnBypass(player, victim.getLocation())) {
             event.setCancelled(true);
-            player.sendMessage(spawnCfg.msgDamage);
+            player.sendMessage(s.msgDamage);
             return;
         }
 
@@ -507,12 +544,12 @@ public class BannerListener implements Listener {
         Block piston = event.getBlock();
         BlockFace direction = event.getDirection();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(piston.getLocation());
+
         // Spawn protection
-        if (spawnCfg.fPistons) {
-            if (isInSpawn(piston.getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
+        if (s != null && s.fPistons && isInSpawn(piston.getLocation())) {
+            event.setCancelled(true);
+            return;
         }
 
         Team pistonTeam = getClaimingTeam(piston);
@@ -521,12 +558,13 @@ public class BannerListener implements Listener {
             Block from = moved;
             Block to = moved.getRelative(direction);
 
-            // Spawn protection
-            if (spawnCfg.fPistons) {
-                if (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation())) {
-                    event.setCancelled(true);
-                    return;
-                }
+            SpawnClaimConfig.WorldSettings sFrom = spawnSettings(from.getLocation());
+            SpawnClaimConfig.WorldSettings sTo = spawnSettings(to.getLocation());
+
+            if (((sFrom != null && sFrom.fPistons) || (sTo != null && sTo.fPistons))
+                    && (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation()))) {
+                event.setCancelled(true);
+                return;
             }
 
             if (isIllegalPistonMovement(pistonTeam, from, to)) {
@@ -545,12 +583,12 @@ public class BannerListener implements Listener {
         Block piston = event.getBlock();
         BlockFace direction = event.getDirection();
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(piston.getLocation());
+
         // Spawn protection
-        if (spawnCfg.fPistons) {
-            if (isInSpawn(piston.getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
+        if (s != null && s.fPistons && isInSpawn(piston.getLocation())) {
+            event.setCancelled(true);
+            return;
         }
 
         Team pistonTeam = getClaimingTeam(piston);
@@ -562,12 +600,13 @@ public class BannerListener implements Listener {
 
         Block to = piston;
 
-        // Spawn protection
-        if (spawnCfg.fPistons) {
-            if (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation())) {
-                event.setCancelled(true);
-                return;
-            }
+        SpawnClaimConfig.WorldSettings sFrom = spawnSettings(from.getLocation());
+        SpawnClaimConfig.WorldSettings sTo = spawnSettings(to.getLocation());
+
+        if (((sFrom != null && sFrom.fPistons) || (sTo != null && sTo.fPistons))
+                && (isInSpawn(from.getLocation()) || isInSpawn(to.getLocation()))) {
+            event.setCancelled(true);
+            return;
         }
 
         if (isIllegalPistonMovement(pistonTeam, from, to)) {
@@ -589,10 +628,12 @@ public class BannerListener implements Listener {
             return;
         }
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(target.getLocation());
+
         // Spawn protection (projectiles in spawn)
-        if (spawnCfg.fProjectiles && isInSpawn(target.getLocation())) {
+        if (s != null && s.fProjectiles && isInSpawn(target.getLocation())) {
             Object shooterObj = projectile.getShooter();
-            if (shooterObj instanceof Player shooter && isSpawnBypass(shooter)) {
+            if (shooterObj instanceof Player shooter && isSpawnBypass(shooter, target.getLocation())) {
                 return; // allow bypass
             }
             event.setCancelled(true);
@@ -617,6 +658,7 @@ public class BannerListener implements Listener {
             shooter.sendMessage(ChatColor.RED + "You cannot damage entities inside team '"
                     + claimTeam.getName() + "' claim with projectiles.");
             event.setCancelled(true);
+            event.setCancelled(true);
         }
     }
 
@@ -639,11 +681,13 @@ public class BannerListener implements Listener {
         Location hookLoc = event.getHook().getLocation();
         if (hookLoc == null) return;
 
+        SpawnClaimConfig.WorldSettings s = spawnSettings(hookLoc);
+
         // Spawn protection (fishing in spawn)
-        if (spawnCfg.fFishing && isInSpawn(hookLoc) && !isSpawnBypass(event.getPlayer())) {
+        if (s != null && s.fFishing && isInSpawn(hookLoc) && !isSpawnBypass(event.getPlayer(), hookLoc)) {
             event.setCancelled(true);
             event.getHook().remove();
-            event.getPlayer().sendMessage(spawnCfg.msgFish);
+            event.getPlayer().sendMessage(s.msgFish);
             return;
         }
 

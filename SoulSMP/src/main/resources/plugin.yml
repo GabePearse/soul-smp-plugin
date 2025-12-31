@@ -47,3 +47,6 @@ commands:
     description: Leaderboard admin
     usage: /lb <set|remove|recompute>
     permission: soulsmp.admin
+  stuck:
+    description: Kill yourself if you are stuck
+    usage: /stuck
