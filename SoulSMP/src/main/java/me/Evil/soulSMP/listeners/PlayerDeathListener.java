@@ -26,16 +26,16 @@ public class PlayerDeathListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
 
-        // 1) Drop 10x Soul Token at the death location
-        ItemStack token = tokenManager.createToken(10);
-        if (token != null) {
-            player.getWorld().dropItemNaturally(player.getLocation(), token);
-        }
-
         // 2) Reduce team lives and handle wipe logic
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
             return;
+        }
+
+        // 1) Drop 10x Soul Token at the death location
+        ItemStack token = tokenManager.createToken(10);
+        if (token != null) {
+            player.getWorld().dropItemNaturally(player.getLocation(), token);
         }
 
         int livesBefore = team.getLives();

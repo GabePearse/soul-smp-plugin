@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -97,4 +98,14 @@ public class TeamVaultListener implements Listener {
             }
         }
     }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onInventoryClose(InventoryCloseEvent event) {
+        Inventory top = event.getView().getTopInventory();
+        if (!(top.getHolder() instanceof TeamVaultHolder holder)) return;
+
+        Team team = holder.getTeam();
+        vaultManager.saveVault(team);
+    }
+
 }

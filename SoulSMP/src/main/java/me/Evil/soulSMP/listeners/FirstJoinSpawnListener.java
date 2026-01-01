@@ -12,8 +12,6 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.util.UUID;
-
 public class FirstJoinSpawnListener implements Listener {
 
     private final JavaPlugin plugin;
@@ -31,7 +29,7 @@ public class FirstJoinSpawnListener implements Listener {
         return root == null ? null : root.getConfigurationSection("first-join");
     }
 
-    private boolean isFirstJoinEnabled() {
+    private boolean isDefaultRespawnEnabled() {
         ConfigurationSection fj = firstJoinSection();
         if (fj == null) return false;
         if (!fj.getBoolean("enabled", true)) return false;
@@ -43,82 +41,71 @@ public class FirstJoinSpawnListener implements Listener {
         return fj != null && fj.getBoolean("debug-force", false);
     }
 
-    private Location getConfiguredSpawn() {
-        ConfigurationSection root = spawnRoot();
-        if (root == null) return null;
-
+    /** This is the world you want to force respawns into (Overworld). */
+    private World getDefaultRespawnWorld() {
         ConfigurationSection fj = firstJoinSection();
-        if (fj == null) return null;
+        String worldName = (fj != null) ? fj.getString("world", "world") : "world";
+        return Bukkit.getWorld(worldName);
+    }
 
-        if (!fj.getBoolean("enabled", true)) return null;
-        if (!fj.getBoolean("set-bed-spawn", true)) return null;
+    private Location getConfiguredSpawn(World world) {
+        ConfigurationSection root = spawnRoot();
+        if (root == null || world == null) return null;
 
-        String worldName = fj.getString("world", "world");
-        World w = Bukkit.getWorld(worldName);
-        if (w == null) return null;
+        ConfigurationSection perWorld = root.getConfigurationSection("per-world");
+        ConfigurationSection worldSec = (perWorld != null) ? perWorld.getConfigurationSection(world.getName()) : null;
 
-        ConfigurationSection c = root.getConfigurationSection("center");
-        double x = (c != null) ? c.getDouble("x", 0.5) : 0.5;
-        double y = (c != null) ? c.getDouble("y", 64.0) : 64.0;
-        double z = (c != null) ? c.getDouble("z", 0.5) : 0.5;
+        if (worldSec == null) return null;
+        if (!worldSec.getBoolean("enabled", true)) return null;
+
+        if (worldSec.getBoolean("use-world-spawn", false)) {
+            return world.getSpawnLocation();
+        }
+
+        ConfigurationSection center = worldSec.getConfigurationSection("center");
+        double x = (center != null) ? center.getDouble("x", 0.5) : 0.5;
+        double y = (center != null) ? center.getDouble("y", 64.0) : 64.0;
+        double z = (center != null) ? center.getDouble("z", 0.5) : 0.5;
 
         float yaw = (float) root.getDouble("center-yaw", 0.0);
         float pitch = (float) root.getDouble("center-pitch", 0.0);
 
-        return new Location(w, x, y, z, yaw, pitch);
+        return new Location(world, x, y, z, yaw, pitch);
     }
 
-    private String seenPath(UUID uuid) {
-        return "first-join-seen." + uuid.toString();
-    }
-
-    private boolean wasHandledFirstJoin(UUID uuid) {
-        return plugin.getConfig().getBoolean(seenPath(uuid), false);
-    }
-
-    private void markHandledFirstJoin(UUID uuid) {
-        plugin.getConfig().set(seenPath(uuid), true);
-        plugin.saveConfig();
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST)
-    public void onFirstJoin(PlayerJoinEvent e) {
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
+        if (!isDefaultRespawnEnabled()) return;
 
-        if (!isFirstJoinEnabled()) return;
-
-        // Normal behavior: only run for true first join players.
-        // Testing behavior: debug-force ignores hasPlayedBefore().
         if (!debugForce() && p.hasPlayedBefore()) return;
 
-        Location spawn = getConfiguredSpawn();
+        World defaultWorld = getDefaultRespawnWorld();
+        Location spawn = getConfiguredSpawn(defaultWorld);
         if (spawn == null) return;
 
-        // Run 1 tick later so it happens after most join handlers
         Bukkit.getScheduler().runTask(plugin, () -> {
             p.setRespawnLocation(spawn, true);
-            markHandledFirstJoin(p.getUniqueId());
-
-            Location now = p.getRespawnLocation();
+            p.teleport(spawn);
         });
     }
 
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent e) {
-        Player p = e.getPlayer();
+        if (!isDefaultRespawnEnabled()) return;
 
-        if (!isFirstJoinEnabled()) return;
-
-        boolean allow = debugForce() || wasHandledFirstJoin(p.getUniqueId());
-        if (!allow) return;
-
-        // If the player has a bed/anchor respawn, DO NOT override it.
+        // Respect bed/anchor always (including respawn anchors in the Nether)
         if (e.isBedSpawn() || e.isAnchorSpawn()) return;
 
-        Location spawn = getConfiguredSpawn();
+        World defaultWorld = getDefaultRespawnWorld(); // <-- ALWAYS overworld (config-driven)
+        Location spawn = getConfiguredSpawn(defaultWorld);
         if (spawn == null) return;
 
+        // Force respawn location to overworld spawn
         e.setRespawnLocation(spawn);
-    }
 
+        // Persist as their default respawn too
+        Bukkit.getScheduler().runTask(plugin, () -> e.getPlayer().setRespawnLocation(spawn, true));
+    }
 }

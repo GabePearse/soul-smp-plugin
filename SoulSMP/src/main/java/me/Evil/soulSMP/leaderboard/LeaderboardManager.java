@@ -13,6 +13,7 @@ import org.bukkit.plugin.Plugin;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.NumberFormat;
 import java.util.*;
 
 public class LeaderboardManager {
@@ -69,7 +70,7 @@ public class LeaderboardManager {
     }
 
     /**
-     * Formats rarity as "1 in Y".
+     * Formats rarity as "1 in Y" (with comma grouping, e.g. "1 in 15,330").
      * Supports either:
      *  - probability p (0 < p < 1): Y = 1/p
      *  - denominator-like values (>= 1): Y = value
@@ -84,7 +85,10 @@ public class LeaderboardManager {
             denom = Math.max(1L, Math.round(rarityValue));
         }
 
-        return "1 in " + denom;
+        NumberFormat nf = NumberFormat.getIntegerInstance(Locale.US);
+        nf.setGroupingUsed(true);
+
+        return "1 in " + nf.format(denom);
     }
 
     /**

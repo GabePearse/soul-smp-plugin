@@ -148,8 +148,8 @@ public class SoulSMP extends JavaPlugin {
         // ---------------------------
         // LOAD DATA
         // ---------------------------
-        vaultManager.loadVaults();
         teamManager.loadTeams();
+        vaultManager.loadVaults();
 
         // ---------------------------
         // LEADERBOARD

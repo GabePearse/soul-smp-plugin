@@ -2,9 +2,11 @@ package me.Evil.soulSMP.commands;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
+import me.Evil.soulSMP.upkeep.UpkeepStatus;
 import me.Evil.soulSMP.util.GiveOrDrop;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -80,6 +82,34 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     }
 
     // =====================
+    // Helpers
+    // =====================
+
+    private String formatLoc(Location loc) {
+        if (loc == null) return ChatColor.GRAY + "Not set";
+        if (loc.getWorld() == null) return ChatColor.RED + "Invalid world";
+        return ChatColor.WHITE + loc.getWorld().getName() + " [" +
+                loc.getBlockX() + ", " +
+                loc.getBlockY() + ", " +
+                loc.getBlockZ() + "]";
+    }
+
+    /**
+     * Your Team class does not have an "active" boolean, so we treat "not active" as:
+     * - lives <= 0 OR
+     * - upkeepStatus == UNSTABLE/UNPROTECTED
+     *
+     * If your definition differs, adjust this method only.
+     */
+    private boolean isTeamInactive(Team t) {
+        if (t == null) return true;
+        if (t.getLives() <= 0) return true;
+
+        UpkeepStatus st = t.getUpkeepStatus();
+        return st == UpkeepStatus.UNSTABLE || st == UpkeepStatus.UNPROTECTED;
+    }
+
+    // =====================
     // /team list
     // /team list <name>  -> Public info (EXCEPT banner location)
     // =====================
@@ -92,7 +122,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(ChatColor.RED + "No team found named '" + name + "'.");
                 return;
             }
-            sendPublicTeamInfo(player, t);
+            // list stays "safe": do not reveal beacon location
+            sendPublicTeamInfo(player, t, false);
             return;
         }
 
@@ -118,6 +149,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     // =====================
     // /team info
     // /team info <name> -> Public info (EXCEPT banner location)
+    // + if inactive, show "Beacon Location" (uses bannerLocation field)
     // =====================
 
     private void handleInfo(Player player, String[] args) {
@@ -130,7 +162,8 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(ChatColor.RED + "No team found named '" + name + "'.");
                 return;
             }
-            sendPublicTeamInfo(player, t);
+            // info <name> can reveal beacon location only if inactive
+            sendPublicTeamInfo(player, t, true);
             return;
         }
 
@@ -143,7 +176,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
         player.sendMessage(ChatColor.GOLD + "==== Team Info ====");
         player.sendMessage(ChatColor.AQUA + "Name: " + ChatColor.WHITE + team.getName());
-        player.sendMessage(ChatColor.AQUA + "Members: " + ChatColor.WHITE + team.getMembers().size() + "/" + Team.MAX_MEMBERS);
+        player.sendMessage(ChatColor.AQUA + "Members: " + ChatColor.WHITE + team.getMembers().size() + "/" + team.getMaxMembers());
         player.sendMessage(ChatColor.AQUA + "Lives: " + ChatColor.WHITE + team.getLives());
         player.sendMessage(ChatColor.AQUA + "Claim Radius: " + ChatColor.WHITE + team.getClaimRadius() + " chunks");
         player.sendMessage(ChatColor.AQUA + "Vault Size: " + ChatColor.WHITE + team.getVaultSize());
@@ -179,16 +212,17 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     /**
      * Public team info for other teams (EXCLUDES banner placed locations).
-     * Safe to show to anyone.
+     * If allowBeaconReveal == true and team is inactive:
+     *   show "Beacon Location" using the team's bannerLocation (since Team currently stores only bannerLocation).
      */
-    private void sendPublicTeamInfo(Player viewer, Team t) {
+    private void sendPublicTeamInfo(Player viewer, Team t, boolean allowBeaconReveal) {
         viewer.sendMessage(ChatColor.GOLD + "==== Team Info: " + ChatColor.AQUA + t.getName() + ChatColor.GOLD + " ====");
 
         String ownerName = Bukkit.getOfflinePlayer(t.getOwner()).getName();
         if (ownerName == null) ownerName = "Unknown";
 
         viewer.sendMessage(ChatColor.YELLOW + "Owner: " + ChatColor.WHITE + ownerName);
-        viewer.sendMessage(ChatColor.YELLOW + "Members: " + ChatColor.WHITE + t.getMembers().size() + "/" + Team.MAX_MEMBERS);
+        viewer.sendMessage(ChatColor.YELLOW + "Members: " + ChatColor.WHITE + t.getMembers().size() + "/" + t.getMaxMembers());
         viewer.sendMessage(ChatColor.YELLOW + "Lives: " + ChatColor.WHITE + t.getLives());
         viewer.sendMessage(ChatColor.YELLOW + "Claim Radius: " + ChatColor.WHITE + t.getClaimRadius());
         viewer.sendMessage(ChatColor.YELLOW + "Vault Size: " + ChatColor.WHITE + t.getVaultSize());
@@ -208,6 +242,14 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         viewer.sendMessage(ChatColor.YELLOW + "Players: " + ChatColor.GRAY + String.join(ChatColor.DARK_GRAY + ", " + ChatColor.GRAY, names));
 
         viewer.sendMessage(ChatColor.DARK_GRAY + "(Banner locations are hidden)");
+
+        // ✅ If inactive, reveal "beacon location" (using bannerLocation field)
+        if (allowBeaconReveal && isTeamInactive(t)) {
+            // You said: if 0 lives OR not active -> show beacon location.
+            // Team doesn't have beaconLocation, so we use bannerLocation as the beacon point.
+            Location beaconLoc = t.getBannerLocation();
+            viewer.sendMessage(ChatColor.LIGHT_PURPLE + "Beacon Location: " + formatLoc(beaconLoc));
+        }
     }
 
     // Banner-only help
@@ -590,6 +632,14 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         Team team = teamManager.acceptInvite(player);
         if (team == null) {
             player.sendMessage(ChatColor.RED + "Your team invite has expired.");
+            return;
+        }
+
+        // acceptInvite now calls addPlayerToTeam internally; we need to ensure the join actually happened.
+        Team actual = teamManager.getTeamByPlayer(player);
+        if (actual == null || !actual.equals(team)) {
+            // Most likely team became full between invite and accept
+            player.sendMessage(ChatColor.RED + "Could not join the team (it may be full).");
             return;
         }
 

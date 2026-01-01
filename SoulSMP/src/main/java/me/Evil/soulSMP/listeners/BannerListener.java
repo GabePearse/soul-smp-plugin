@@ -14,6 +14,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntitySpawnEvent;
@@ -92,6 +93,29 @@ public class BannerListener implements Listener {
         if (fallback == null) p.sendMessage(s.msgGeneric);
         else p.sendMessage(fallback);
     }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onCreatureSpawn(CreatureSpawnEvent event) {
+        Location loc = event.getLocation();
+        SpawnClaimConfig.WorldSettings s = spawnSettings(loc);
+        if (s == null) return;
+
+        if (!s.fMobSpawn) return;
+        if (!isInSpawn(loc)) return;
+
+        // Block "world-generated" spawning in spawn (covers passive + hostile natural spawns)
+        CreatureSpawnEvent.SpawnReason reason = event.getSpawnReason();
+        switch (reason) {
+            case NATURAL, PATROL, RAID, REINFORCEMENTS, VILLAGE_DEFENSE, VILLAGE_INVASION, TRAP -> {
+                event.setCancelled(true);
+            }
+            default -> {
+                // leave spawners / eggs / plugins / commands alone by default
+                // (If you want ABSOLUTELY NO spawns of any kind, cancel here too.)
+            }
+        }
+    }
+
 
     // =========================================================
     // BLOCK PLACE – claim protection + banner claim placement

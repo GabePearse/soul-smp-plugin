@@ -16,7 +16,8 @@ import java.util.*;
 
 public class Team {
 
-    public static final int MAX_MEMBERS = 3;
+    // Max members (configured)
+    private final int maxMembers;
 
     // Identity & members
     private final String name;
@@ -47,9 +48,11 @@ public class Team {
     private UpkeepStatus upkeepStatus = UpkeepStatus.PROTECTED;
     private int baseClaimRadiusForUpkeep = -1;
 
-    public Team(String name, UUID owner) {
+    public Team(String name, UUID owner, int maxMembers) {
         this.name = name;
         this.owner = owner;
+        this.maxMembers = Math.max(1, maxMembers);
+
         if (owner != null) {
             this.members.add(owner);
         }
@@ -67,20 +70,37 @@ public class Team {
 
     public void setOwner(UUID owner) { this.owner = owner; }
 
+    // --- Max Members ---
+
+    public int getMaxMembers() { return maxMembers; }
+
     // --- Members ---
 
     public Set<UUID> getMembers() { return Collections.unmodifiableSet(members); }
 
     public boolean isMember(UUID uuid) { return members.contains(uuid); }
 
+    /**
+     * Normal gameplay add: ENFORCES maxMembers.
+     */
     public boolean addMember(UUID uuid) {
-        if (members.size() >= MAX_MEMBERS) return false;
+        if (uuid == null) return false;
+        if (members.size() >= maxMembers) return false;
+        return members.add(uuid);
+    }
+
+    /**
+     * Internal/raw add used ONLY for loading/syncing data from disk.
+     * Does NOT enforce maxMembers (so you don't lose members if config is lowered).
+     */
+    boolean addMemberRaw(UUID uuid) {
+        if (uuid == null) return false;
         return members.add(uuid);
     }
 
     public boolean removeMember(UUID uuid) { return members.remove(uuid); }
 
-    public boolean isFull() { return members.size() >= MAX_MEMBERS; }
+    public boolean isFull() { return members.size() >= maxMembers; }
 
     // --- Beacon effects ---
 
@@ -111,10 +131,7 @@ public class Team {
 
     public boolean hasClaimedBannerDesign() { return bannerMaterial != null; }
 
-    public Material getBannerMaterial() {
-        return bannerMaterial;
-    }
-
+    public Material getBannerMaterial() { return bannerMaterial; }
 
     public void setBannerDesign(ItemStack stack) {
         if (stack == null || !stack.getType().name().endsWith("_BANNER")) return;
@@ -301,18 +318,20 @@ public class Team {
     // --- Deserialize ---
 
     @SuppressWarnings("unchecked")
-    public static Team deserialize(ConfigurationSection sec) {
+    public static Team deserialize(ConfigurationSection sec, int maxMembers) {
+        if (sec == null) return null;
+
         String name = sec.getString("name", sec.getName());
         String ownerStr = sec.getString("owner");
         UUID owner = ownerStr != null ? UUID.fromString(ownerStr) : null;
 
-        Team team = new Team(name, owner);
+        Team team = new Team(name, owner, maxMembers);
 
-        // Members
+        // Members (raw add so loading never fails due to cap)
         for (String s : sec.getStringList("members")) {
-            if (s != null && !s.isEmpty()) team.members.add(UUID.fromString(s));
+            if (s != null && !s.isEmpty()) team.addMemberRaw(UUID.fromString(s));
         }
-        if (owner != null) team.members.add(owner);
+        if (owner != null) team.addMemberRaw(owner);
 
         // Basic values
         team.lives = sec.getInt("lives", 5);

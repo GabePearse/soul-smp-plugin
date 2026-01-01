@@ -112,12 +112,18 @@ public class SpawnClaimConfig {
         public final boolean fProjectiles;
         public final boolean fFishing;
 
+        // NEW: Mob spawning control inside spawn claim
+        public final boolean fMobSpawn;
+
         // Messages
         public final String msgGeneric;
         public final String msgBlockModify;
         public final String msgInteract;
         public final String msgDamage;
         public final String msgFish;
+
+        // NEW: message key for parity (usually not shown because spawns have no player)
+        public final String msgMobSpawn;
 
         private WorldSettings(
                 boolean useWorldSpawn,
@@ -135,11 +141,13 @@ public class SpawnClaimConfig {
                 boolean fPistons,
                 boolean fProjectiles,
                 boolean fFishing,
+                boolean fMobSpawn,
                 String msgGeneric,
                 String msgBlockModify,
                 String msgInteract,
                 String msgDamage,
-                String msgFish
+                String msgFish,
+                String msgMobSpawn
         ) {
             this.useWorldSpawn = useWorldSpawn;
             this.centerX = centerX;
@@ -161,11 +169,15 @@ public class SpawnClaimConfig {
             this.fProjectiles = fProjectiles;
             this.fFishing = fFishing;
 
+            this.fMobSpawn = fMobSpawn;
+
             this.msgGeneric = msgGeneric;
             this.msgBlockModify = msgBlockModify;
             this.msgInteract = msgInteract;
             this.msgDamage = msgDamage;
             this.msgFish = msgFish;
+
+            this.msgMobSpawn = msgMobSpawn;
         }
 
         public static WorldSettings defaults() {
@@ -185,11 +197,13 @@ public class SpawnClaimConfig {
                     true,  // pistons
                     true,  // projectiles
                     true,  // fishing
+                    true,  // mob-spawn (NEW)
                     color("&cYou can't do that in Spawn."),
                     color("&cYou cannot modify blocks in Spawn."),
                     color("&cYou cannot interact here in Spawn."),
                     color("&cYou cannot damage entities in Spawn."),
-                    color("&cYou cannot fish in Spawn.")
+                    color("&cYou cannot fish in Spawn."),
+                    color("&cMobs cannot spawn in Spawn.") // NEW
             );
         }
 
@@ -201,8 +215,8 @@ public class SpawnClaimConfig {
          * - center: {x,y,z}
          * - radius-blocks: int
          * - bypass-permission: string
-         * - features: { block-break, block-place, explosions, liquids, buckets, interact-blocks, interact-entities, damage-entities, pistons, projectiles, fishing }
-         * - messages: { generic, block-modify, interact, damage, fish }
+         * - features: { block-break, block-place, explosions, liquids, buckets, interact-blocks, interact-entities, damage-entities, pistons, projectiles, fishing, mob-spawn }
+         * - messages: { generic, block-modify, interact, damage, fish, mob-spawn }
          */
         public static WorldSettings fromSection(ConfigurationSection sec, WorldSettings base) {
             if (sec == null) return base;
@@ -231,12 +245,18 @@ public class SpawnClaimConfig {
             boolean fProjectiles      = (f == null) ? base.fProjectiles : f.getBoolean("projectiles", base.fProjectiles);
             boolean fFishing          = (f == null) ? base.fFishing : f.getBoolean("fishing", base.fFishing);
 
+            // NEW
+            boolean fMobSpawn         = (f == null) ? base.fMobSpawn : f.getBoolean("mob-spawn", base.fMobSpawn);
+
             ConfigurationSection m = sec.getConfigurationSection("messages");
             String msgGeneric     = color(m != null ? m.getString("generic", base.msgGeneric) : base.msgGeneric);
             String msgBlockModify = color(m != null ? m.getString("block-modify", base.msgBlockModify) : base.msgBlockModify);
             String msgInteract    = color(m != null ? m.getString("interact", base.msgInteract) : base.msgInteract);
             String msgDamage      = color(m != null ? m.getString("damage", base.msgDamage) : base.msgDamage);
             String msgFish        = color(m != null ? m.getString("fish", base.msgFish) : base.msgFish);
+
+            // NEW
+            String msgMobSpawn    = color(m != null ? m.getString("mob-spawn", base.msgMobSpawn) : base.msgMobSpawn);
 
             return new WorldSettings(
                     useWorldSpawn,
@@ -254,11 +274,13 @@ public class SpawnClaimConfig {
                     fPistons,
                     fProjectiles,
                     fFishing,
+                    fMobSpawn, // NEW
                     msgGeneric,
                     msgBlockModify,
                     msgInteract,
                     msgDamage,
-                    msgFish
+                    msgFish,
+                    msgMobSpawn // NEW
             );
         }
 

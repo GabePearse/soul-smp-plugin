@@ -5,6 +5,7 @@ import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.util.InventoryUtils;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -19,32 +20,32 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Manages team vault inventories, slot‑lock logic, and YAML persistence.
- */
 public class TeamVaultManager {
 
     public static final int VAULT_INVENTORY_SIZE = 27;
 
     private final Plugin plugin;
     private final TeamManager teamManager;
-    private final Map<Team, Inventory> vaults = new HashMap<>();
+
+    /** Cache vaults by stable key (NOT Team object instance). */
+    private final Map<String, Inventory> vaults = new HashMap<>();
 
     private File vaultFile;
     private FileConfiguration vaultConfig;
 
-    // Template for locked slots (cloned per slot)
     private final ItemStack lockedPaneTemplate;
-
-    // Template for the vault shop icon (last slot)
     private final ItemStack shopIconTemplate;
 
     public TeamVaultManager(Plugin plugin, TeamManager teamManager) {
-        this.plugin   = plugin;
+        this.plugin = plugin;
         this.teamManager = teamManager;
         initFile();
         this.lockedPaneTemplate = createLockedPaneTemplate();
-        this.shopIconTemplate   = createShopIconTemplate();
+        this.shopIconTemplate = createShopIconTemplate();
+    }
+
+    private String teamKey(Team team) {
+        return team.getName().toLowerCase();
     }
 
     private void initFile() {
@@ -81,7 +82,7 @@ public class TeamVaultManager {
 
     private ItemStack createShopIconTemplate() {
         ItemStack item = new ItemStack(Material.NETHER_STAR);
-        ItemMeta meta  = item.getItemMeta();
+        ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(ChatColor.GOLD + "Vault & Banner Shop");
             meta.setLore(java.util.List.of(
@@ -102,38 +103,61 @@ public class TeamVaultManager {
     }
 
     /**
-     * Ensures that:
-     *  – Slots [0, vaultSize) are normal (no locked panes forced in them)
-     *  – Slots [vaultSize, VAULT_INVENTORY_SIZE‑1) are filled with locked panes
-     *  – The very last slot (index 26) is always the shop icon
+     * Tries to find the actual stored key for this team in vaults.yml.
+     * Supports migrating old keys like "Flyhigh" -> "flyhigh".
+     */
+    private String findStoredVaultPathForTeam(Team team) {
+        if (vaultConfig == null || team == null) return null;
+
+        String norm = teamKey(team);
+        String normPath = "vaults." + norm;
+        if (vaultConfig.contains(normPath)) return normPath;
+
+        // Try exact (legacy behavior)
+        String exactPath = "vaults." + team.getName();
+        if (vaultConfig.contains(exactPath)) return exactPath;
+
+        // Try case-insensitive scan of vaults section
+        ConfigurationSection sec = vaultConfig.getConfigurationSection("vaults");
+        if (sec == null) return null;
+
+        for (String k : sec.getKeys(false)) {
+            if (k != null && k.equalsIgnoreCase(team.getName())) {
+                return "vaults." + k;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Layout rules:
+     * - Slots [0, allowed) are usable
+     * - Slots [allowed, 26) are locked panes
+     * - Slot 26 is always the shop icon
      */
     public void refreshVaultLayout(Team team) {
-        Inventory inv = vaults.get(team);
+        if (team == null) return;
+
+        Inventory inv = vaults.get(teamKey(team));
         if (inv == null) return;
 
-        int size    = inv.getSize(); // should be 27
-        int allowed = team.getVaultSize();
-        if (allowed < 0) allowed = 0;
-        if (allowed > VAULT_INVENTORY_SIZE) allowed = VAULT_INVENTORY_SIZE;
+        int allowed = Math.max(0, Math.min(team.getVaultSize(), VAULT_INVENTORY_SIZE));
+        int lastIndex = VAULT_INVENTORY_SIZE - 1;
 
-        int lastIndex = VAULT_INVENTORY_SIZE - 1; // 26
+        for (int slot = 0; slot < inv.getSize(); slot++) {
 
-        for (int slot = 0; slot < size; slot++) {
-
-            // Reserve the last slot for the shop icon
             if (slot == lastIndex) {
                 inv.setItem(slot, createShopIcon());
                 continue;
             }
 
             if (slot < allowed) {
-                // Unlocked region: if we previously had a locked pane here, clear it
                 ItemStack current = inv.getItem(slot);
                 if (isLockedPane(current)) {
                     inv.setItem(slot, null);
                 }
             } else {
-                // Locked region: enforce locked pane
                 ItemStack current = inv.getItem(slot);
                 if (!isLockedPane(current)) {
                     inv.setItem(slot, createLockedPane());
@@ -145,40 +169,31 @@ public class TeamVaultManager {
     public boolean isLockedPane(ItemStack item) {
         if (item == null) return false;
         if (item.getType() != Material.BLACK_STAINED_GLASS_PANE) return false;
-
         if (!item.hasItemMeta()) return false;
-        ItemMeta meta = item.getItemMeta();
 
-        if (!meta.hasDisplayName()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null || !meta.hasDisplayName()) return false;
 
         return ChatColor.stripColor(meta.getDisplayName()).contains("Locked");
     }
 
-    /**
-     * Only the first team.getVaultSize() slots are usable for storage.
-     * The last slot (index 26) is always treated as locked (shop icon).
-     */
     public boolean isSlotLocked(Team team, int slot) {
         if (team == null) return true;
         if (slot < 0 || slot >= VAULT_INVENTORY_SIZE) return true;
 
         int lastIndex = VAULT_INVENTORY_SIZE - 1;
-        if (slot == lastIndex) return true; // shop slot is never storage
+        if (slot == lastIndex) return true;
 
-        int allowed = team.getVaultSize();
-        if (allowed < 0) allowed = 0;
-        if (allowed > VAULT_INVENTORY_SIZE) allowed = VAULT_INVENTORY_SIZE;
-
+        int allowed = Math.max(0, Math.min(team.getVaultSize(), VAULT_INVENTORY_SIZE));
         return slot >= allowed;
     }
 
-    /**
-     * Gets or creates the vault inventory for a team.
-     */
     public Inventory getVault(Team team) {
         if (team == null) return null;
 
-        Inventory inv = vaults.get(team);
+        String tKey = teamKey(team);
+
+        Inventory inv = vaults.get(tKey);
         if (inv == null) {
             TeamVaultHolder holder = new TeamVaultHolder(team);
 
@@ -189,12 +204,10 @@ public class TeamVaultManager {
             );
 
             holder.setInventory(inv);
-            vaults.put(team, inv);
+            vaults.put(tKey, inv);
         }
 
-        // Ensure locked panes + shop icon are in correct slots
         refreshVaultLayout(team);
-
         return inv;
     }
 
@@ -213,51 +226,95 @@ public class TeamVaultManager {
 
     public void loadVaults() {
         initFile();
-
         if (vaultConfig == null) return;
 
-        // Clear any previously cached vaults so removed teams don’t retain stale inventories
         vaults.clear();
 
         for (Team team : teamManager.getAllTeams()) {
-            String key = "vaults." + team.getName();
-            if (!vaultConfig.contains(key)) continue;
+            String storedPath = findStoredVaultPathForTeam(team);
+            if (storedPath == null) continue;
 
-            String base64 = vaultConfig.getString(key);
+            String base64 = vaultConfig.getString(storedPath);
             if (base64 == null || base64.isEmpty()) continue;
 
             try {
                 TeamVaultHolder holder = new TeamVaultHolder(team);
+
                 Inventory inv = InventoryUtils.fromBase64(
                         base64,
                         ChatColor.DARK_GREEN + "Team Vault - " + team.getName(),
                         holder
                 );
-                vaults.put(team, inv);
 
-                // Ensure locked panes & shop icon in the right slots after loading
+                holder.setInventory(inv);
+                vaults.put(teamKey(team), inv);
+
+                // Always rebuild UI after load
                 refreshVaultLayout(team);
+
+                // migrate key to normalized lowercase
+                String normPath = "vaults." + teamKey(team);
+                if (!storedPath.equals(normPath)) {
+                    vaultConfig.set(normPath, base64);
+                    vaultConfig.set(storedPath, null);
+                }
 
             } catch (IllegalStateException e) {
                 plugin.getLogger().warning("Failed to load vault for team " + team.getName() + ": " + e.getMessage());
             }
         }
 
+        try {
+            vaultConfig.save(vaultFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("Could not save migrated vaults.yml: " + e.getMessage());
+        }
+
         plugin.getLogger().info("Loaded " + vaults.size() + " team vault(s).");
+    }
+
+    /**
+     * Clean copy for persistence:
+     * - Removes locked panes
+     * - Removes shop icon
+     * - Removes anything in the locked region [allowed, 26)
+     */
+    private Inventory makeSavableCopy(Team team, Inventory inv) {
+        Inventory copy = plugin.getServer().createInventory(null, VAULT_INVENTORY_SIZE);
+        copy.setContents(inv.getContents().clone());
+
+        int lastIndex = VAULT_INVENTORY_SIZE - 1;
+
+        // Remove shop icon
+        copy.setItem(lastIndex, null);
+
+        // Remove panes anywhere
+        for (int i = 0; i < VAULT_INVENTORY_SIZE; i++) {
+            if (isLockedPane(copy.getItem(i))) {
+                copy.setItem(i, null);
+            }
+        }
+
+        // Do not persist anything in locked slots
+        int allowed = Math.max(0, Math.min(team.getVaultSize(), VAULT_INVENTORY_SIZE));
+        for (int i = allowed; i < lastIndex; i++) {
+            copy.setItem(i, null);
+        }
+
+        return copy;
     }
 
     public void saveVault(Team team) {
         if (team == null) return;
+        if (vaultConfig == null) initFile();
 
-        if (vaultConfig == null) {
-            initFile();
-        }
-
-        Inventory inv = vaults.get(team);
+        Inventory inv = vaults.get(teamKey(team));
         if (inv == null) return;
 
-        String key   = "vaults." + team.getName();
-        String base64 = InventoryUtils.toBase64(inv);
+        Inventory savable = makeSavableCopy(team, inv);
+
+        String key = "vaults." + teamKey(team);
+        String base64 = InventoryUtils.toBase64(savable);
         vaultConfig.set(key, base64);
 
         try {
@@ -268,21 +325,25 @@ public class TeamVaultManager {
         }
     }
 
+    /**
+     * Saves ALL vaults in a cleaned format.
+     * Iterates teams so cleaning is always correct (no lookup required).
+     */
     public void saveVaults() {
-        if (vaultConfig == null) {
-            initFile();
-        }
+        if (vaultConfig == null) initFile();
 
         vaultConfig.set("vaults", null);
 
-        for (Map.Entry<Team, Inventory> entry : vaults.entrySet()) {
-            Team team   = entry.getKey();
-            Inventory inv = entry.getValue();
-            if (team == null || inv == null) continue;
+        for (Team team : teamManager.getAllTeams()) {
+            if (team == null) continue;
 
-            String key   = "vaults." + team.getName();
-            String base64 = InventoryUtils.toBase64(inv);
-            vaultConfig.set(key, base64);
+            Inventory inv = vaults.get(teamKey(team));
+            if (inv == null) continue;
+
+            Inventory savable = makeSavableCopy(team, inv);
+            String key = "vaults." + teamKey(team);
+
+            vaultConfig.set(key, InventoryUtils.toBase64(savable));
         }
 
         try {
