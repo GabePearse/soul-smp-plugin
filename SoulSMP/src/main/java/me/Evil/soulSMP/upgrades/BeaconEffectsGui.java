@@ -17,6 +17,10 @@ public class BeaconEffectsGui {
     private static final int SIZE = 27;
     private static final String TITLE = ChatColor.DARK_AQUA + "Beacon Effects";
 
+    // The upgrade id we’ll treat as the “radius multiplier” upgrade.
+    // Matches the config entry you’ll add: effects.radius: ...
+    private static final String RADIUS_UPGRADE_ID = "radius";
+
     public static void open(Player player, Team team, BeaconEffectSettings settings) {
         if (player == null || team == null || settings == null) return;
 
@@ -68,7 +72,7 @@ public class BeaconEffectsGui {
                 continue;
             }
 
-            // NORMAL UPGRADE EFFECTS
+            // NORMAL UPGRADE EFFECTS (including radius multiplier)
             int current = team.getEffectLevel(effect.getId());
             int max = effect.getMaxLevel();
 
@@ -86,13 +90,23 @@ public class BeaconEffectsGui {
                 lore.add(ChatColor.RED + "No levels configured for this effect.");
             } else if (current >= max) {
                 lore.add(ChatColor.GREEN + "MAXED");
+                lore.add("");
+                lore.add(ChatColor.GRAY + "Current: " + ChatColor.AQUA + getDisplayValue(effect.getId(), current));
             } else {
                 BeaconEffectLevel next = effect.getLevel(current + 1);
                 if (next != null) {
-                    for (String line : next.getLore()) {
-                        lore.add(line.replace("{cost}", String.valueOf(next.getCost())));
+                    List<String> nextLore = next.getLore();
+                    if (nextLore != null) {
+                        for (String line : nextLore) {
+                            lore.add(applyPlaceholders(line, effect.getId(), current, current + 1, next.getCost()));
+                        }
+                    } else {
+                        lore.add(ChatColor.RED + "Next level lore is missing.");
                     }
+
                     lore.add("");
+                    lore.add(ChatColor.GRAY + "Current: " + ChatColor.AQUA + getDisplayValue(effect.getId(), current));
+                    lore.add(ChatColor.GRAY + "Next: " + ChatColor.AQUA + getDisplayValue(effect.getId(), current + 1));
                     lore.add(ChatColor.YELLOW + "Click to upgrade to level " + (current + 1));
                 } else {
                     lore.add(ChatColor.RED + "Next level is not configured.");
@@ -106,5 +120,40 @@ public class BeaconEffectsGui {
 
         // ✅ Only open – no extra hard-coded back arrow anymore
         player.openInventory(inv);
+    }
+
+    private static String applyPlaceholders(String line, String effectId, int currentLevel, int nextLevel, int nextCost) {
+        if (line == null) return "";
+
+        String out = line;
+
+        out = out.replace("{cost}", String.valueOf(nextCost));
+        out = out.replace("{current_level}", String.valueOf(currentLevel));
+        out = out.replace("{next_level}", String.valueOf(nextLevel));
+
+        if (RADIUS_UPGRADE_ID.equalsIgnoreCase(effectId)) {
+            out = out.replace("{current_multiplier}", formatMultiplier(multiplierForLevel(currentLevel)));
+            out = out.replace("{next_multiplier}", formatMultiplier(multiplierForLevel(nextLevel)));
+        }
+
+        return out;
+    }
+
+    private static String getDisplayValue(String effectId, int level) {
+        if (RADIUS_UPGRADE_ID.equalsIgnoreCase(effectId)) {
+            return "x" + formatMultiplier(multiplierForLevel(level));
+        }
+        return "Level " + level;
+    }
+
+    private static double multiplierForLevel(int level) {
+        if (level <= 0) return 1.0;
+        if (level == 1) return 1.5;
+        return 2.0; // level 2+ clamps
+    }
+
+    private static String formatMultiplier(double value) {
+        // Keep it clean: 1.0, 1.5, 2.0
+        return String.valueOf(value);
     }
 }

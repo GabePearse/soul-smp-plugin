@@ -26,16 +26,10 @@ public class PlayerDeathListener implements Listener {
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
 
-        // 2) Reduce team lives and handle wipe logic
+        // Team check
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
             return;
-        }
-
-        // 1) Drop 10x Soul Token at the death location
-        ItemStack token = tokenManager.createToken(10);
-        if (token != null) {
-            player.getWorld().dropItemNaturally(player.getLocation(), token);
         }
 
         int livesBefore = team.getLives();
@@ -44,6 +38,24 @@ public class PlayerDeathListener implements Listener {
             return;
         }
 
+        // ✅ Drop ONLY ONE Soul Token ONLY IF:
+        // - killed by a player
+        // - victim is in a team with lives remaining (we already checked livesBefore > 0)
+        // - killer is NOT in the victim's team
+        Player killer = player.getKiller(); // only non-null when last damage was caused by a player
+        if (killer != null) {
+            Team killerTeam = teamManager.getTeamByPlayer(killer);
+
+            boolean sameTeam = (killerTeam != null && killerTeam == team);
+            if (!sameTeam) {
+                ItemStack token = tokenManager.createToken(1);
+                if (token != null) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), token);
+                }
+            }
+        }
+
+        // Reduce team lives and handle wipe logic
         team.removeLife(); // team.lives -= 1
         int livesAfter = team.getLives();
 

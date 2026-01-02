@@ -45,6 +45,7 @@ public class SoulSMPCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();

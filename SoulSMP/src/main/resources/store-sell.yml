@@ -63,8 +63,8 @@ materials:
     payout: 8
     slot: 28
   TOTEM_OF_UNDYING:
-    unit: 1
-    payout: 16
+    unit: 32
+    payout: 1
     slot: 29
   HEAVY_CORE:
     unit: 1

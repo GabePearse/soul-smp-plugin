@@ -14,6 +14,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class TeamManager {
 
@@ -25,32 +26,27 @@ public class TeamManager {
     private File teamsFile;
     private FileConfiguration teamsConfig;
 
-    // ✅ Optional hook so TeamManager can trigger leaderboard recomputes when claim changes
     private LeaderboardManager leaderboard;
+
+    // ✅ Same rules as TeamCommand to guarantee safety even if called elsewhere
+    private static final Pattern TEAM_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{3,16}$");
 
     public TeamManager(Plugin plugin) {
         this.plugin = plugin;
-        initStorage(); // ✅ centralize file creation / resource copy
+        initStorage();
     }
 
-    /** Reads max team members from plugin config.yml (NOT teams.yml). */
     public int getMaxTeamMembers() {
-        // Works for Paper/Spigot: your plugin main class extends JavaPlugin, so Plugin should be a JavaPlugin.
         if (plugin instanceof JavaPlugin jp) {
             return Math.max(1, jp.getConfig().getInt("teams.max-members", 3));
         }
         return 3;
     }
 
-    /** Call this once after LeaderboardManager is constructed (onEnable / reload). */
     public void setLeaderboard(LeaderboardManager leaderboard) {
         this.leaderboard = leaderboard;
     }
 
-    /**
-     * Preferred way to change claim radius so leaderboard auto-updates.
-     * Use this instead of team.setClaimRadius(...) directly.
-     */
     public void setClaimRadius(Team team, int newRadius) {
         if (team == null) return;
 
@@ -63,11 +59,6 @@ public class TeamManager {
         }
     }
 
-    /**
-     * Ensures plugins/<PluginName>/teams.yml exists.
-     * If missing, tries to copy from jar resources (src/main/resources/teams.yml).
-     * If resource copy fails, creates an empty file as a last resort.
-     */
     private void initStorage() {
         if (!plugin.getDataFolder().exists()) {
             //noinspection ResultOfMethodCallIgnored
@@ -76,7 +67,6 @@ public class TeamManager {
 
         teamsFile = new File(plugin.getDataFolder(), "teams.yml");
 
-        // If missing, prefer the packaged resource
         if (!teamsFile.exists()) {
             boolean copied = false;
 
@@ -84,13 +74,11 @@ public class TeamManager {
                 plugin.saveResource("teams.yml", false);
                 copied = teamsFile.exists();
             } catch (IllegalArgumentException ex) {
-                // teams.yml not present in jar resources
                 plugin.getLogger().warning("teams.yml not found in plugin jar resources. Will create a blank teams.yml.");
             } catch (Exception ex) {
                 plugin.getLogger().warning("Failed to copy teams.yml from resources: " + ex.getMessage());
             }
 
-            // Last resort: create an empty file
             if (!copied) {
                 try {
                     //noinspection ResultOfMethodCallIgnored
@@ -104,10 +92,34 @@ public class TeamManager {
         teamsConfig = YamlConfiguration.loadConfiguration(teamsFile);
     }
 
+    // -------------------------
+    // Name safety
+    // -------------------------
+
+    private boolean isValidTeamName(String name) {
+        if (name == null) return false;
+        name = name.trim();
+        if (!TEAM_NAME_PATTERN.matcher(name).matches()) return false;
+
+        // extra safety; regex already blocks these
+        return !name.contains(".") && !name.contains("/") && !name.contains("\\") && !name.contains(":");
+    }
+
+    private String teamKey(String name) {
+        return name.toLowerCase(Locale.ROOT);
+    }
+
+    private String teamKey(Team team) {
+        return teamKey(team.getName());
+    }
+
     // --- Team creation ---
 
     public Team createTeam(String name, Player owner) {
-        String key = name.toLowerCase(Locale.ROOT);
+        if (owner == null) return null;
+        if (!isValidTeamName(name)) return null;
+
+        String key = teamKey(name);
         if (teamsByName.containsKey(key)) return null;
 
         Team team = new Team(name, owner.getUniqueId(), getMaxTeamMembers());
@@ -121,7 +133,7 @@ public class TeamManager {
     public void disbandTeam(Team team) {
         if (team == null) return;
 
-        String key = team.getName().toLowerCase(Locale.ROOT);
+        String key = teamKey(team);
         teamsByName.remove(key);
 
         for (UUID uuid : team.getMembers()) teamsByPlayer.remove(uuid);
@@ -134,7 +146,6 @@ public class TeamManager {
             plugin.getLogger().severe("Could not save teams.yml while disbanding: " + e.getMessage());
         }
 
-        // If team changes could impact biggest-claim leaderboard, recompute (debounced)
         if (leaderboard != null) leaderboard.scheduleRecompute();
     }
 
@@ -142,7 +153,7 @@ public class TeamManager {
 
     public Team getTeamByName(String name) {
         if (name == null) return null;
-        return teamsByName.get(name.toLowerCase(Locale.ROOT));
+        return teamsByName.get(teamKey(name));
     }
 
     public Team getTeamByPlayer(Player p) {
@@ -265,7 +276,6 @@ public class TeamManager {
         World w = c.getWorld();
         if (w == null) return;
 
-        // Recommended: don't try to show an overworld claim while player is in nether/end
         if (p.getWorld() != w) {
             p.sendMessage(ChatColor.RED + "You must be in " + w.getName() + " to view your claim border.");
             return;
@@ -285,7 +295,7 @@ public class TeamManager {
             @Override public void run() {
                 if (ticks >= 200) { cancel(); return; }
 
-                int playerY = p.getLocation().getBlockY(); // player's Y, not banner's
+                int playerY = p.getLocation().getBlockY();
                 draw(w, minX, maxX, minZ, maxZ, playerY);
 
                 ticks += 10;
@@ -311,7 +321,6 @@ public class TeamManager {
         }
     }
 
-
     // --- Persistence ---
 
     public void saveTeams() {
@@ -319,7 +328,7 @@ public class TeamManager {
 
         Map<String, Object> out = new LinkedHashMap<>();
         for (Team t : teamsByName.values()) {
-            out.put(t.getName().toLowerCase(Locale.ROOT), t.serialize());
+            out.put(teamKey(t), t.serialize());
         }
 
         teamsConfig.set("teams", out);
@@ -332,7 +341,13 @@ public class TeamManager {
         if (t == null) return;
         if (teamsConfig == null) initStorage();
 
-        String key = "teams." + t.getName().toLowerCase(Locale.ROOT);
+        String keyName = t.getName();
+        if (!isValidTeamName(keyName)) {
+            plugin.getLogger().warning("Refusing to save team with invalid name: '" + keyName + "'");
+            return;
+        }
+
+        String key = "teams." + teamKey(t);
         teamsConfig.set(key, t.serialize());
 
         try { teamsConfig.save(teamsFile); }
@@ -356,7 +371,13 @@ public class TeamManager {
             Team t = Team.deserialize(teamsSec.getConfigurationSection(key), maxMembers);
             if (t == null) continue;
 
-            String nameKey = t.getName().toLowerCase(Locale.ROOT);
+            // If old data contains illegal names, skip them safely
+            if (!isValidTeamName(t.getName())) {
+                plugin.getLogger().warning("Skipping team with invalid name from teams.yml: '" + t.getName() + "'");
+                continue;
+            }
+
+            String nameKey = teamKey(t);
             teamsByName.put(nameKey, t);
             for (UUID uuid : t.getMembers()) teamsByPlayer.put(uuid, t);
         }
@@ -383,7 +404,12 @@ public class TeamManager {
             Team loaded = Team.deserialize(teamSec, maxMembers);
             if (loaded == null) continue;
 
-            String nameKey = loaded.getName().toLowerCase(Locale.ROOT);
+            if (!isValidTeamName(loaded.getName())) {
+                plugin.getLogger().warning("Skipping invalid team during reload: '" + loaded.getName() + "'");
+                continue;
+            }
+
+            String nameKey = teamKey(loaded.getName());
             Team existing = teamsByName.get(nameKey);
 
             if (existing != null) {
@@ -404,11 +430,6 @@ public class TeamManager {
                 existing.setUpkeepStatus(loaded.getUpkeepStatus());
                 existing.setBaseClaimRadiusForUpkeep(loaded.getBaseClaimRadiusForUpkeep());
 
-                // Member diff/sync:
-                // NOTE: existing Team's maxMembers is whatever it was created with.
-                // If you want it to update live when config changes, you should recreate Team objects
-                // (or refactor Team to consult TeamManager each time). Keeping it stable is usually fine.
-
                 Set<UUID> old = new HashSet<>(existing.getMembers());
                 Set<UUID> nw = new HashSet<>(loaded.getMembers());
 
@@ -420,7 +441,6 @@ public class TeamManager {
                 }
                 for (UUID u : nw) {
                     if (!old.contains(u)) {
-                        // Raw add so reload doesn't silently fail because of cap
                         existing.addMemberRaw(u);
                         teamsByPlayer.put(u, existing);
                     }
@@ -442,7 +462,6 @@ public class TeamManager {
             if (t != null) disbandTeam(t);
         }
 
-        // If claim radii changed across reload, recompute (debounced)
         if (leaderboard != null) leaderboard.scheduleRecompute();
     }
 }

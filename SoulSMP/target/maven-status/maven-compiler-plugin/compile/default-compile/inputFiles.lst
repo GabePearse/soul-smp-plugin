@@ -1,5 +1,6 @@
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\bank\BankGUI.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\bank\BankManager.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\broadcaster\ServerTipBroadcaster.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\chat\TeamChatManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\JournalCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\commands\NpcCommand.java
@@ -22,6 +23,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardCommand.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardDisplay.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\leaderboard\LeaderboardManager.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\AdvancementRewardListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BankListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BannerListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\BeaconEffectsListener.java
@@ -32,6 +34,7 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishingJournalListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\FishingListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\LeaderboardProtectionListener.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\LevelRewardListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\MannequinNpcListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\PlayerDeathListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\SoulTokenProtectionListener.java
@@ -42,6 +45,8 @@ C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\listeners\TeamVaultListener.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\npc\MannequinNpcManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\npc\NpcType.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\rewards\AdvancementRewardSettings.java
+C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\rewards\RewardProgressManager.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\shop\BannerShopItem.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\shop\BannerShopSettings.java
 C:\Users\gabe\OneDrive\Desktop\Work + Coding\Minecraft Plugins\soul-smp\soul-smp-plugin\SoulSMP\src\main\java\me\Evil\soulSMP\shop\DimensionBannerShopGui.java

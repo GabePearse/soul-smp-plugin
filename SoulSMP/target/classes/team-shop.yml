@@ -38,8 +38,8 @@ banner-shop:
         - "&7Current life count: &b{current_lives}"
         - ""
         - "&eCost: &b{cost} &7Soul Tokens"
-      base-cost: 100
-      cost-multiplier: 1.0
+      base-cost: 10
+      cost-multiplier: 1.5
 
     chest:
       type: STORAGE

@@ -97,6 +97,25 @@ effects:
         lore:
           - "&7Upgrades to &eJump II"
           - "&eCost: &b{cost} tokens"
+
+  radius:
+    type: RADIUS
+    slot: 16
+    material: COMPASS
+    display-name: "&dEffect Radius"
+    levels:
+      1:
+        cost: 25
+        lore:
+          - "&7Increases your aura range."
+          - "&7Multiplier: &bx1.5"
+          - "&eCost: &b{cost} tokens"
+      2:
+        cost: 75
+        lore:
+          - "&7Increases your aura range further."
+          - "&7Multiplier: &bx2.0"
+          - "&eCost: &b{cost} tokens"
   
   back:
     type: BACK

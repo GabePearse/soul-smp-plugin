@@ -221,53 +221,116 @@ public class TeamVaultManager {
     }
 
     // ==========================
-    // Persistence
+    // Persistence (Plain YAML)
     // ==========================
 
+    /**
+     * New format (plain YAML, NOT base64):
+     *
+     * vaults:
+     *   teamname:
+     *     items:
+     *       "0": <ItemStack serialized>
+     *       "5": <ItemStack serialized>
+     *
+     * Legacy format (base64 string) still loads ONCE and is migrated to the new format.
+     */
     public void loadVaults() {
         initFile();
         if (vaultConfig == null) return;
 
         vaults.clear();
 
+        boolean migratedAny = false;
+
         for (Team team : teamManager.getAllTeams()) {
+            if (team == null) continue;
+
             String storedPath = findStoredVaultPathForTeam(team);
             if (storedPath == null) continue;
 
-            String base64 = vaultConfig.getString(storedPath);
-            if (base64 == null || base64.isEmpty()) continue;
+            Object raw = vaultConfig.get(storedPath);
+            if (raw == null) continue;
 
-            try {
-                TeamVaultHolder holder = new TeamVaultHolder(team);
+            TeamVaultHolder holder = new TeamVaultHolder(team);
+            Inventory inv = plugin.getServer().createInventory(
+                    holder,
+                    VAULT_INVENTORY_SIZE,
+                    ChatColor.DARK_GREEN + "Team Vault - " + team.getName()
+            );
+            holder.setInventory(inv);
 
-                Inventory inv = InventoryUtils.fromBase64(
-                        base64,
-                        ChatColor.DARK_GREEN + "Team Vault - " + team.getName(),
-                        holder
-                );
+            boolean loaded = false;
 
-                holder.setInventory(inv);
-                vaults.put(teamKey(team), inv);
+            // ===== 1) Legacy base64 string =====
+            if (raw instanceof String base64) {
+                if (base64 != null && !base64.isEmpty()) {
+                    try {
+                        Inventory decoded = InventoryUtils.fromBase64(
+                                base64,
+                                ChatColor.DARK_GREEN + "Team Vault - " + team.getName(),
+                                holder
+                        );
 
-                // Always rebuild UI after load
-                refreshVaultLayout(team);
+                        // Copy decoded contents into our fixed-size inventory
+                        ItemStack[] contents = decoded.getContents();
+                        for (int i = 0; i < Math.min(contents.length, VAULT_INVENTORY_SIZE); i++) {
+                            inv.setItem(i, contents[i]);
+                        }
 
-                // migrate key to normalized lowercase
-                String normPath = "vaults." + teamKey(team);
-                if (!storedPath.equals(normPath)) {
-                    vaultConfig.set(normPath, base64);
-                    vaultConfig.set(storedPath, null);
+                        loaded = true;
+
+                        // Migrate to new normalized key + plain format
+                        String normPath = "vaults." + teamKey(team);
+                        writeVaultToConfig(team, inv, normPath);
+
+                        // Remove old legacy base64 entry (and old-case key)
+                        vaultConfig.set(storedPath, null);
+
+                        migratedAny = true;
+
+                    } catch (IllegalStateException e) {
+                        plugin.getLogger().warning("Failed to load legacy(base64) vault for team "
+                                + team.getName() + ": " + e.getMessage());
+                    }
                 }
-
-            } catch (IllegalStateException e) {
-                plugin.getLogger().warning("Failed to load vault for team " + team.getName() + ": " + e.getMessage());
             }
+
+            // ===== 2) New plain YAML section =====
+            if (!loaded) {
+                ConfigurationSection teamSec = vaultConfig.getConfigurationSection(storedPath);
+                if (teamSec != null) {
+                    readVaultFromConfig(inv, teamSec);
+                    loaded = true;
+
+                    // Migrate key to normalized lowercase if needed
+                    String normPath = "vaults." + teamKey(team);
+                    if (!storedPath.equals(normPath)) {
+                        // Copy section over and remove old
+                        writeVaultToConfig(team, inv, normPath);
+                        vaultConfig.set(storedPath, null);
+                        migratedAny = true;
+                    }
+                }
+            }
+
+            if (!loaded) {
+                // Nothing usable found for this team
+                continue;
+            }
+
+            vaults.put(teamKey(team), inv);
+
+            // Always rebuild UI after load
+            refreshVaultLayout(team);
         }
 
-        try {
-            vaultConfig.save(vaultFile);
-        } catch (IOException e) {
-            plugin.getLogger().severe("Could not save migrated vaults.yml: " + e.getMessage());
+        if (migratedAny) {
+            try {
+                vaultConfig.save(vaultFile);
+            } catch (IOException e) {
+                plugin.getLogger().severe("Could not save migrated vaults.yml: " + e.getMessage());
+            }
         }
 
         plugin.getLogger().info("Loaded " + vaults.size() + " team vault(s).");
@@ -304,9 +367,68 @@ public class TeamVaultManager {
         return copy;
     }
 
+    /**
+     * Writes the given inventory to config in the new plain YAML format at the given path:
+     * vaults.<teamKey>:
+     *   items:
+     *     "slot": <ItemStack>
+     */
+    private void writeVaultToConfig(Team team, Inventory inv, String path) {
+        if (vaultConfig == null) initFile();
+        if (vaultConfig == null) return;
+        if (team == null || inv == null || path == null || path.isEmpty()) return;
+
+        // Ensure clean slate at that path (removes any leftover legacy string or old structure)
+        vaultConfig.set(path, null);
+
+        ConfigurationSection teamSec = vaultConfig.createSection(path);
+        ConfigurationSection itemsSec = teamSec.createSection("items");
+
+        ItemStack[] contents = inv.getContents();
+        int max = Math.min(contents.length, VAULT_INVENTORY_SIZE);
+
+        for (int slot = 0; slot < max; slot++) {
+            ItemStack item = contents[slot];
+            if (item == null || item.getType().isAir()) continue;
+
+            // Slot keys as strings to be safe with YAML
+            itemsSec.set(String.valueOf(slot), item);
+        }
+    }
+
+    /**
+     * Reads the new plain YAML format into an inventory:
+     * teamSection.items.<slot> = ItemStack
+     */
+    private void readVaultFromConfig(Inventory inv, ConfigurationSection teamSection) {
+        if (inv == null || teamSection == null) return;
+
+        ConfigurationSection itemsSec = teamSection.getConfigurationSection("items");
+        if (itemsSec == null) return;
+
+        for (String key : itemsSec.getKeys(false)) {
+            if (key == null) continue;
+
+            int slot;
+            try {
+                slot = Integer.parseInt(key);
+            } catch (NumberFormatException ignored) {
+                continue;
+            }
+
+            if (slot < 0 || slot >= VAULT_INVENTORY_SIZE) continue;
+
+            ItemStack item = itemsSec.getItemStack(key);
+            if (item == null || item.getType().isAir()) continue;
+
+            inv.setItem(slot, item);
+        }
+    }
+
     public void saveVault(Team team) {
         if (team == null) return;
         if (vaultConfig == null) initFile();
+        if (vaultConfig == null) return;
 
         Inventory inv = vaults.get(teamKey(team));
         if (inv == null) return;
@@ -314,8 +436,7 @@ public class TeamVaultManager {
         Inventory savable = makeSavableCopy(team, inv);
 
         String key = "vaults." + teamKey(team);
-        String base64 = InventoryUtils.toBase64(savable);
-        vaultConfig.set(key, base64);
+        writeVaultToConfig(team, savable, key);
 
         try {
             vaultConfig.save(vaultFile);
@@ -331,6 +452,7 @@ public class TeamVaultManager {
      */
     public void saveVaults() {
         if (vaultConfig == null) initFile();
+        if (vaultConfig == null) return;
 
         vaultConfig.set("vaults", null);
 
@@ -343,7 +465,7 @@ public class TeamVaultManager {
             Inventory savable = makeSavableCopy(team, inv);
             String key = "vaults." + teamKey(team);
 
-            vaultConfig.set(key, InventoryUtils.toBase64(savable));
+            writeVaultToConfig(team, savable, key);
         }
 
         try {

@@ -227,7 +227,11 @@ public class TeamBannerShopListener implements Listener {
     }
 
     private void handleLivesPurchase(Player player, Team team, BannerShopItem item) {
-        int cost = item.getBaseCost(); // flat cost (100 from YAML by default)
+
+        int startingLives = 0; // set this to your real default starting lives (ex: 3)
+        int upgradesSoFar = Math.max(0, team.getLives() - startingLives);
+
+        int cost = item.getScaledCost(upgradesSoFar);
         int tokens = tokenManager.countTokensInInventory(player);
 
         if (tokens < cost) {
@@ -243,15 +247,14 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // Give 1 life per purchase (tweak if you want more)
         team.addLives(1);
         teamManager.saveTeam(team);
 
         player.sendMessage(ChatColor.GREEN + "Your team has gained "
                 + ChatColor.AQUA + "1" + ChatColor.GREEN + " extra life!");
+        player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + cost + " Soul Tokens");
         player.sendMessage(ChatColor.AQUA + "Total lives: " + ChatColor.YELLOW + team.getLives());
 
-        // Refresh the shop to update "current lives" display
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 

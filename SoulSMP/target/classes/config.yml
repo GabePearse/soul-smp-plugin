@@ -1,28 +1,8 @@
 spawn-claim:
   enabled: true
 
-  worlds:
-    - world
-
-  use-world-spawn: false
-
-  center:
-    x: 0.0
-    y: 0.0
-    z: 0.0
-
-  center-yaw: 0.0
-  center-pitch: 0.0
-
-  radius-blocks: 150
-
-  first-join:
-    enabled: true
-    set-bed-spawn: true
-    world: "world"
-    debug-force: false
-
-  bypass-permission: "soulsmp.spawn.bypass"
+  # Global defaults (used as fallback if a world doesn't override something)
+  bypass-permission: soulsmp.spawn.bypass
 
   features:
     block-break: true
@@ -36,10 +16,57 @@ spawn-claim:
     pistons: true
     projectiles: true
     fishing: true
+    mob-spawn: true
 
   messages:
-    generic: "&cYou can't do that in Spawn."
-    block-modify: "&cYou cannot modify blocks in Spawn."
-    interact: "&cYou cannot interact here in Spawn."
-    damage: "&cYou cannot damage entities in Spawn."
-    fish: "&cYou cannot fish in Spawn."
+    generic: '&cYou can''t do that in Spawn.'
+    block-modify: '&cYou cannot modify blocks in Spawn.'
+    interact: '&cYou cannot interact here in Spawn.'
+    damage: '&cYou cannot damage entities in Spawn.'
+    fish: '&cYou cannot fish in Spawn.'
+    mob-spawn: '&cMobs cannot spawn in Spawn.'
+
+  # Your existing first-join block stays exactly as-is
+  first-join:
+    enabled: true
+    set-bed-spawn: true
+    world: world
+    debug-force: false
+
+  # Per-world spawn claim
+  per-world:
+    world:
+      enabled: true
+      use-world-spawn: false
+      center:
+        x: -1.0
+        y: 68.0
+        z: 7.0
+      radius-blocks: 300
+
+    world_nether:
+      enabled: true
+      use-world-spawn: false
+      center:
+        x: -1.0
+        y: 78.0
+        z: 7.0
+      radius-blocks: 38
+
+  # Keep these if another part of your plugin reads them (teleport / first-join, etc.)
+  center-yaw: 52.0
+  center-pitch: -6.0
+
+teams:
+  max-members: 5
+
+tips:
+  enabled: true
+  interval-seconds: 300   # every 5 minutes (min 30)
+  random-order: false
+
+  messages:
+    - "&8[&bSoulSMP&8] &7Stuck somewhere? Use &b/stuck &7(Confirm by typing it again)."
+    - "&8[&bSoulSMP&8] &7New here? Check the &bSpawn Tutorial &7to learn banners, claims, and upgrades."
+    - "&8[&bSoulSMP&8] &7Join the Discord: &bdiscord.gg/YOURCODE"
+    - "&8[&bSoulSMP&8] &7Find the &bShop &7and &bBank &7at spawn! (Look for the NPCs)"
