@@ -123,6 +123,11 @@ public class TeamManager {
         if (teamsByName.containsKey(key)) return null;
 
         Team team = new Team(name, owner.getUniqueId(), getMaxTeamMembers());
+
+        // ✅ NEW: ensure it starts at 0 lifetime purchases (if your Team ctor doesn’t already)
+        // If you add a default in Team constructor you can delete this line.
+        team.setLivesPurchased(0);
+
         teamsByName.put(key, team);
         teamsByPlayer.put(owner.getUniqueId(), team);
 
@@ -371,7 +376,6 @@ public class TeamManager {
             Team t = Team.deserialize(teamsSec.getConfigurationSection(key), maxMembers);
             if (t == null) continue;
 
-            // If old data contains illegal names, skip them safely
             if (!isValidTeamName(t.getName())) {
                 plugin.getLogger().warning("Skipping team with invalid name from teams.yml: '" + t.getName() + "'");
                 continue;
@@ -417,6 +421,10 @@ public class TeamManager {
 
                 existing.setOwner(loaded.getOwner());
                 existing.setLives(loaded.getLives());
+
+                // ✅ NEW: keep lifetime lives purchase counter in sync
+                existing.setLivesPurchased(loaded.getLivesPurchased());
+
                 existing.setClaimRadius(loaded.getClaimRadius());
                 existing.setVaultSize(loaded.getVaultSize());
                 existing.setEffectMap(loaded.getEffectMap());

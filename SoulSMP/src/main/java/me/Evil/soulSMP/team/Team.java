@@ -42,6 +42,9 @@ public class Team {
     private int lives;
     private int vaultSize;
 
+    // ✅ NEW: lifetime progression for life purchases (used for scaling cost)
+    private int livesPurchased; // total extra lives bought
+
     // === Upkeep ===
     private long lastUpkeepPaymentMillis = 0L;
     private int unpaidWeeks = 0;
@@ -60,6 +63,9 @@ public class Team {
         this.claimRadius = 1;
         this.lives = 10;
         this.vaultSize = 1;
+
+        // ✅ default
+        this.livesPurchased = 0;
     }
 
     // --- Identity ---
@@ -178,6 +184,13 @@ public class Team {
 
     public void removeLife() { this.lives--; }
 
+    // ✅ lifetime purchases
+    public int getLivesPurchased() { return livesPurchased; }
+
+    public void setLivesPurchased(int v) { livesPurchased = Math.max(0, v); }
+
+    public void addLivesPurchased(int amount) { livesPurchased = Math.max(0, livesPurchased + amount); }
+
     public int getVaultSize() { return vaultSize; }
 
     public void setVaultSize(int vaultSize) { this.vaultSize = vaultSize; }
@@ -253,9 +266,13 @@ public class Team {
         map.put("members", memberStrings);
 
         map.put("effects", beaconEffects);
+
         map.put("lives", lives);
         map.put("claimRadius", claimRadius);
         map.put("vaultSize", vaultSize);
+
+        // ✅ NEW: persist lifetime purchases
+        map.put("livesPurchased", livesPurchased);
 
         // Banner location
         if (bannerLocation != null && bannerLocation.getWorld() != null) {
@@ -337,6 +354,9 @@ public class Team {
         team.lives = sec.getInt("lives", 5);
         team.claimRadius = sec.getInt("claimRadius", 1);
         team.vaultSize = sec.getInt("vaultSize", 9);
+
+        // ✅ NEW: load lifetime purchases (defaults to 0 for old data)
+        team.livesPurchased = Math.max(0, sec.getInt("livesPurchased", 0));
 
         // Effects
         ConfigurationSection effSec = sec.getConfigurationSection("effects");

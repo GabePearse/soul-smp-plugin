@@ -39,7 +39,7 @@ banner-shop:
         - ""
         - "&eCost: &b{cost} &7Soul Tokens"
       base-cost: 10
-      cost-multiplier: 1.5
+      cost-multiplier: 1.35
 
     chest:
       type: STORAGE

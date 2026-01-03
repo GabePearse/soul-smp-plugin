@@ -126,10 +126,7 @@ public class TeamBannerShopListener implements Listener {
     }
 
     private void handleUpkeepPayment(Player player, Team team) {
-        // Any team member can pay; no owner check.
         upkeepManager.payUpkeep(player, team);
-
-        // Optionally re-open the shop so they see updated status
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
@@ -183,7 +180,6 @@ public class TeamBannerShopListener implements Listener {
         int currentRadius = team.getClaimRadius();
         int maxRadius = item.getMaxRadius();
 
-        // Can't expand if team is out of lives
         if (team.getLives() <= 0) {
             player.sendMessage(ChatColor.DARK_RED + "Your team has no lives left.");
             player.sendMessage(ChatColor.RED + "You cannot expand your claim while your banner is doomed.");
@@ -191,13 +187,11 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // Already at max radius
         if (currentRadius >= maxRadius) {
             player.sendMessage(ChatColor.RED + "Your team's claim radius is already at the maximum.");
             return;
         }
 
-        // Cost is based on the *current* radius
         int cost = item.getRadiusUpgradeCost(currentRadius);
         int tokens = tokenManager.countTokensInInventory(player);
 
@@ -214,7 +208,6 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // ✅ Apply new radius THROUGH TeamManager so leaderboard updates automatically
         int newRadius = currentRadius + 1;
         teamManager.setClaimRadius(team, newRadius);
 
@@ -222,18 +215,22 @@ public class TeamBannerShopListener implements Listener {
                 + ChatColor.AQUA + newRadius + ChatColor.GREEN + " chunks!");
         player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + cost + " Soul Tokens");
 
-        // Refresh the shop to show updated radius / cost
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
+    /**
+     * Lives cost uses "livesPurchased" (lifetime upgrades), NOT current lives.
+     * This prevents the "stay low then buy when needed" exploit.
+     *
+     * Next life cost:
+     *   cost = baseCost * multiplier^(livesPurchased)
+     */
     private void handleLivesPurchase(Player player, Team team, BannerShopItem item) {
 
-        int startingLives = 0; // set this to your real default starting lives (ex: 3)
-        int upgradesSoFar = Math.max(0, team.getLives() - startingLives);
+        int stepIndex = Math.max(0, team.getLivesPurchased());
+        int cost = item.getScaledCost(stepIndex);
 
-        int cost = item.getScaledCost(upgradesSoFar);
         int tokens = tokenManager.countTokensInInventory(player);
-
         if (tokens < cost) {
             player.sendMessage(ChatColor.RED + "You need at least "
                     + ChatColor.AQUA + cost + ChatColor.RED
@@ -241,13 +238,14 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        boolean removed = tokenManager.removeTokensFromPlayer(player, cost);
-        if (!removed) {
+        if (!tokenManager.removeTokensFromPlayer(player, cost)) {
             player.sendMessage(ChatColor.RED + "Could not remove Soul Tokens from your inventory.");
             return;
         }
 
+        // Purchase succeeds: add life + record lifetime purchase
         team.addLives(1);
+        team.addLivesPurchased(1);
         teamManager.saveTeam(team);
 
         player.sendMessage(ChatColor.GREEN + "Your team has gained "
@@ -261,7 +259,6 @@ public class TeamBannerShopListener implements Listener {
     private void handleStorageUpgrade(Player player, Team team, BannerShopItem item) {
         int currentSlots = team.getVaultSize();
 
-        // Last slot in vault is reserved for shop icon, so max usable = size - 1
         int maxSlots = TeamVaultManager.VAULT_INVENTORY_SIZE - 1;
         if (currentSlots >= maxSlots) {
             player.sendMessage(ChatColor.RED + "Your team vault is already at maximum capacity.");
@@ -278,13 +275,11 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        boolean removed = tokenManager.removeTokensFromPlayer(player, cost);
-        if (!removed) {
+        if (!tokenManager.removeTokensFromPlayer(player, cost)) {
             player.sendMessage(ChatColor.RED + "Could not remove Soul Tokens from your inventory.");
             return;
         }
 
-        // Increase vault size by 1 slot
         team.setVaultSize(currentSlots + 1);
         teamManager.saveTeam(team);
 
@@ -292,7 +287,6 @@ public class TeamBannerShopListener implements Listener {
                 + ChatColor.AQUA + team.getVaultSize() + ChatColor.GREEN + " slots!");
         player.sendMessage(ChatColor.GRAY + "Cost: " + ChatColor.YELLOW + cost + " Soul Tokens");
 
-        // Refresh shop GUI with new values
         TeamBannerShopGui.open(player, team, settings, upkeepManager);
     }
 
@@ -352,15 +346,12 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // For non-Overworld dimensions, you must unlock the dimensional banner first.
-        // For OVERWORLD, we skip this check so you can just buy TP to your main banner.
         if (!"OVERWORLD".equals(dimKey) && !team.hasDimensionalBannerUnlocked(dimKey)) {
             player.sendMessage(ChatColor.RED + "You must unlock the "
                     + niceDimensionName(dimKey) + " banner before buying teleportation.");
             return;
         }
 
-        // If teleport not unlocked yet → this click is the purchase
         if (!team.hasDimensionalTeleportUnlocked(dimKey)) {
             int cost = item.getBaseCost();
             int tokens = tokenManager.countTokensInInventory(player);
@@ -387,10 +378,7 @@ public class TeamBannerShopListener implements Listener {
             return;
         }
 
-        // Teleport is unlocked → now this click is the actual teleport
         Location loc;
-
-        // OVERWORLD TP goes to the main team banner location.
         if ("OVERWORLD".equals(dimKey)) {
             loc = team.getBannerLocation();
         } else {

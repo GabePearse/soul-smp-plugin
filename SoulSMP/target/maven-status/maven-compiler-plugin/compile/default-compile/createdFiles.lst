@@ -1,7 +1,6 @@
 me\Evil\soulSMP\spawn\SpawnClaimConfig.class
 me\Evil\soulSMP\commands\NpcCommand.class
 me\Evil\soulSMP\spawn\SpawnClaimConfig$WorldSettings.class
-me\Evil\soulSMP\rewards\AdvancementRewardSettings.class
 me\Evil\soulSMP\npc\MannequinNpcListener.class
 me\Evil\soulSMP\commands\TextCommand.class
 me\Evil\soulSMP\listeners\AdvancementRewardListener.class

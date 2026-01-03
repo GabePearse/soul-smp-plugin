@@ -14,7 +14,6 @@ import me.Evil.soulSMP.leaderboard.LeaderboardManager;
 import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.npc.MannequinNpcListener;
 import me.Evil.soulSMP.npc.MannequinNpcManager;
-import me.Evil.soulSMP.rewards.AdvancementRewardSettings;
 import me.Evil.soulSMP.rewards.RewardProgressManager;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
@@ -41,7 +40,6 @@ public class SoulSMP extends JavaPlugin {
 
     // Rewards
     private RewardProgressManager rewardProgressManager;
-    private AdvancementRewardSettings advancementRewardSettings;
 
     // Bank
     private BankManager bankManager;
@@ -102,9 +100,6 @@ public class SoulSMP extends JavaPlugin {
         rewardProgressManager = new RewardProgressManager(this);
         rewardProgressManager.load();
         rewardProgressManager.save(); // ensures rewards.yml exists on disk
-
-        // Loads/copies advancement_rewards.yml (constructor handles file creation/copy + load)
-        advancementRewardSettings = new AdvancementRewardSettings(this);
 
         // BANK
         bankManager = new BankManager(this);
@@ -226,9 +221,6 @@ public class SoulSMP extends JavaPlugin {
         rewardProgressManager.load();
         rewardProgressManager.save(); // keep file present
 
-        // Recreate to re-read options/tiers from advancement_rewards.yml
-        advancementRewardSettings = new AdvancementRewardSettings(this);
-
         // Reset event registrations
         org.bukkit.event.HandlerList.unregisterAll(this);
 
@@ -309,28 +301,10 @@ public class SoulSMP extends JavaPlugin {
 
     private void registerListeners(SellEngine sellEngine) {
 
-        // Rewards (LEVELS + ADVANCEMENTS)
-        Bukkit.getPluginManager().registerEvents(
-                new LevelRewardListener(tokenManager, rewardProgressManager),
-                this
-        );
-
-        Bukkit.getPluginManager().registerEvents(
-                new AdvancementRewardListener(tokenManager, rewardProgressManager, advancementRewardSettings),
-                this
-        );
-
-        // Existing listeners
-        Bukkit.getPluginManager().registerEvents(new FishingListener(
-                fishingConfig, fishGenerator, sellEngine,
-                fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey,
-                leaderboardManager
-        ), this);
-
-        Bukkit.getPluginManager().registerEvents(new FishingJournalListener(
-                this, fishingJournalManager, fishingConfig, leaderboardManager
-        ), this);
-
+        Bukkit.getPluginManager().registerEvents(new LevelRewardListener(tokenManager, rewardProgressManager), this);
+        Bukkit.getPluginManager().registerEvents(new AdvancementRewardListener(tokenManager, rewardProgressManager), this);
+        Bukkit.getPluginManager().registerEvents(new FishingListener(fishingConfig, fishGenerator, sellEngine, fishTypeKey, fishRarityKey, fishWeightKey, fishChanceKey, leaderboardManager), this);
+        Bukkit.getPluginManager().registerEvents(new FishingJournalListener(this, fishingJournalManager, fishingConfig, leaderboardManager), this);
         Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new MannequinNpcListener(npcManager, storeManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
@@ -344,9 +318,7 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
         Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
         Bukkit.getPluginManager().registerEvents(new FirstJoinSpawnListener(this), this);
-
         Bukkit.getPluginManager().registerEvents(new LeaderboardProtectionListener(leaderboardManager), this);
-
         Bukkit.getPluginManager().registerEvents(new BankListener(bankManager, tokenManager, teamManager), this);
     }
 
