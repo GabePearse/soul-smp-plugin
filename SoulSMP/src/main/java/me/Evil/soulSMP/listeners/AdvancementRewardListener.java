@@ -29,6 +29,9 @@ public class AdvancementRewardListener implements Listener {
         Advancement adv = event.getAdvancement();
         if (adv == null || adv.getKey() == null) return;
 
+        // ✅ Skip recipes / hidden advancements (these usually have no display)
+        if (adv.getDisplay() == null) return;
+
         String advKey = adv.getKey().toString();
         UUID uuid = player.getUniqueId();
 
@@ -39,12 +42,12 @@ public class AdvancementRewardListener implements Listener {
         int tier = computeTierFromParentChain(adv);
         if (tier <= 0) return;
 
-        // Mark rewarded BEFORE paying (idempotent / double-fire safe)
+        // Mark rewarded BEFORE paying (double-fire safe)
         progress.markRewardedAdvancement(uuid, advKey);
 
         boolean isFirst = progress.trySetFirstCompleter(advKey, uuid);
-
         int payout = isFirst ? (tier * 2) : tier;
+
         if (payout > 0) {
             tokens.giveTokens(player, payout);
         }
@@ -69,10 +72,7 @@ public class AdvancementRewardListener implements Listener {
             if (cur == null || cur.getKey() == null) break;
 
             String k = cur.getKey().toString();
-            if (!seen.add(k)) {
-                // Safety: prevent infinite loops if something is weird
-                break;
-            }
+            if (!seen.add(k)) break; // safety
 
             Advancement parent = cur.getParent();
             if (parent == null) break;
@@ -80,7 +80,7 @@ public class AdvancementRewardListener implements Listener {
             depth++;
             cur = parent;
 
-            if (depth > 200) break; // hard safety cap
+            if (depth > 200) break;
         }
 
         return depth + 1;
