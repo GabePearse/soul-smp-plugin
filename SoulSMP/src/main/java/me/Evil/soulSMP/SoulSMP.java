@@ -8,6 +8,8 @@ import me.Evil.soulSMP.fishing.CustomFishGenerator;
 import me.Evil.soulSMP.fishing.FishingConfig;
 import me.Evil.soulSMP.fishing.journal.FishingJournalManager;
 import me.Evil.soulSMP.fishing.journal.JournalAutoGeneratorPaged;
+import me.Evil.soulSMP.koth.KothKitSettings;
+import me.Evil.soulSMP.koth.KothManager;
 import me.Evil.soulSMP.leaderboard.LeaderboardCommand;
 import me.Evil.soulSMP.leaderboard.LeaderboardDisplay;
 import me.Evil.soulSMP.leaderboard.LeaderboardManager;
@@ -22,10 +24,11 @@ import me.Evil.soulSMP.store.sell.SellEngine;
 import me.Evil.soulSMP.store.util.FishSimCommand;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
-import me.Evil.soulSMP.upgrades.BeaconEffectManager;
-import me.Evil.soulSMP.upgrades.BeaconEffectSettings;
+import me.Evil.soulSMP.beacon.BeaconEffectManager;
+import me.Evil.soulSMP.beacon.BeaconEffectSettings;
 import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
 import me.Evil.soulSMP.vault.TeamVaultManager;
+import me.Evil.soulSMP.vouchers.VoucherMailManager;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -81,9 +84,19 @@ public class SoulSMP extends JavaPlugin {
     private LeaderboardManager leaderboardManager;
     private LeaderboardDisplay leaderboardDisplay;
 
+    // ✅ KOTH
+    private KothKitSettings kothKitSettings;
+    private KothManager kothManager;
+
+    // VOUCHER MAIL
+    private VoucherMailManager voucherMail;
+
+
     public MannequinNpcManager getNpcManager() {
         return npcManager;
     }
+
+    public KothManager getKothManager() { return kothManager; }
 
     @Override
     public void onEnable() {
@@ -96,10 +109,18 @@ public class SoulSMP extends JavaPlugin {
         vaultManager = new TeamVaultManager(this, teamManager);
         tokenManager = new SoulTokenManager(this);
 
-        // REWARDS (create + load + ensure file exists)
+        // VOUCHER MAIL MANAGER
+        voucherMail = new VoucherMailManager(this);
+
+        // ✅ KOTH settings + manager
+        kothKitSettings = new KothKitSettings(this);
+        kothKitSettings.reload();
+        kothManager = new KothManager(this, teamManager, kothKitSettings);
+
+        // REWARDS
         rewardProgressManager = new RewardProgressManager(this);
         rewardProgressManager.load();
-        rewardProgressManager.save(); // ensures rewards.yml exists on disk
+        rewardProgressManager.save();
 
         // BANK
         bankManager = new BankManager(this);
@@ -114,6 +135,8 @@ public class SoulSMP extends JavaPlugin {
 
         // NPC MANAGER
         npcManager = new MannequinNpcManager(this);
+
+
 
         // FISH NBT KEYS
         fishTypeKey   = new NamespacedKey(this, "fish_type");
@@ -174,6 +197,10 @@ public class SoulSMP extends JavaPlugin {
         if (bankManager != null) bankManager.save();
         if (rewardProgressManager != null) rewardProgressManager.save();
 
+        if (kothManager != null && kothManager.isActive()) {
+            kothManager.stop(false);
+        }
+
         if (tipsTaskId != -1) Bukkit.getScheduler().cancelTask(tipsTaskId);
 
         getLogger().info("SoulSMP disabled.");
@@ -214,12 +241,14 @@ public class SoulSMP extends JavaPlugin {
         if (vaultManager != null) vaultManager.loadVaults();
         if (bankManager != null) bankManager.reload();
 
-        // Reload rewards:
-        // - progress (re-read rewards.yml)
-        // - advancement settings (re-copy/load advancement_rewards.yml)
+        // Reload rewards
         if (rewardProgressManager == null) rewardProgressManager = new RewardProgressManager(this);
         rewardProgressManager.load();
-        rewardProgressManager.save(); // keep file present
+        rewardProgressManager.save();
+
+        // ✅ Reload KOTH kit config
+        if (kothKitSettings == null) kothKitSettings = new KothKitSettings(this);
+        kothKitSettings.reload();
 
         // Reset event registrations
         org.bukkit.event.HandlerList.unregisterAll(this);
@@ -297,6 +326,20 @@ public class SoulSMP extends JavaPlugin {
             StuckCommand stuckCommand = new StuckCommand(this);
             getCommand("stuck").setExecutor(stuckCommand);
         }
+
+        // ✅ KOTH
+        if (getCommand("koth") != null) {
+            KothCommand cmd = new KothCommand(kothManager);
+            getCommand("koth").setExecutor(cmd);
+            getCommand("koth").setTabCompleter(cmd);
+        }
+
+        if (getCommand("voucher") != null) {
+            VoucherCommand v = new VoucherCommand(this, voucherMail);
+            getCommand("voucher").setExecutor(v);
+            getCommand("voucher").setTabCompleter(v);
+        }
+
     }
 
     private void registerListeners(SellEngine sellEngine) {
@@ -314,12 +357,15 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new BeaconEffectsListener(effectSettings, tokenManager, teamManager, bannerShopSettings, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager), this);
+        Bukkit.getPluginManager().registerEvents(new PlayerDeathListener(teamManager, tokenManager, kothManager), this);
         Bukkit.getPluginManager().registerEvents(new EnderChestBlocker(), this);
         Bukkit.getPluginManager().registerEvents(new DisableEndCrystalExplosionsListener(), this);
-        Bukkit.getPluginManager().registerEvents(new FirstJoinSpawnListener(this), this);
-        Bukkit.getPluginManager().registerEvents(new LeaderboardProtectionListener(leaderboardManager), this);
+        Bukkit.getPluginManager().registerEvents(new FirstJoinSpawnListener(this, kothManager), this);
         Bukkit.getPluginManager().registerEvents(new BankListener(bankManager, tokenManager, teamManager), this);
+        Bukkit.getPluginManager().registerEvents(new CropGrowthBoostListener(teamManager), this);
+        Bukkit.getPluginManager().registerEvents(new KothListener(this, kothManager), this);
+        Bukkit.getPluginManager().registerEvents(new VoucherListener(this, teamManager, upkeepManager), this);
+        Bukkit.getPluginManager().registerEvents(new VoucherDeliveryListener(voucherMail), this);
     }
 
     private void restartTasks() {

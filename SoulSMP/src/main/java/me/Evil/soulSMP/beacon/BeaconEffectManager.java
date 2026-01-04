@@ -1,9 +1,10 @@
-package me.Evil.soulSMP.upgrades;
+package me.Evil.soulSMP.beacon;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -41,16 +42,24 @@ public class BeaconEffectManager {
      * Matches your claim logic:
      *  halfSize = claimRadius * 8 on each axis (square, not circle).
      *
-     * ✅ Now supports an "effect radius multiplier" upgrade:
+     * ✅ Dimension-aware:
+     * - Overworld => main bannerLocation
+     * - Nether    => dimensional banner "NETHER"
+     * - End       => dimensional banner "END" (or "THE_END")
+     *
+     * ✅ Supports an "effect radius multiplier" upgrade:
      * - level 0 => x1.0
      * - level 1 => x1.5
      * - level 2+ => x2.0
      */
     private boolean isInsideClaim(Player p, Team team) {
-        if (!team.hasBannerLocation()) return false;
+        if (p == null || team == null) return false;
 
-        Location banner = team.getBannerLocation();
-        if (banner.getWorld() == null || !banner.getWorld().equals(p.getWorld())) return false;
+        Location banner = getBannerForPlayerDimension(p, team);
+        if (banner == null || banner.getWorld() == null) return false;
+
+        // Must be in the same world as the banner center for this dimension
+        if (!banner.getWorld().equals(p.getWorld())) return false;
 
         int radiusTiles = Math.max(1, team.getClaimRadius());
 
@@ -61,6 +70,36 @@ public class BeaconEffectManager {
         int dz = p.getLocation().getBlockZ() - banner.getBlockZ();
 
         return Math.abs(dx) <= halfSize && Math.abs(dz) <= halfSize;
+    }
+
+    /**
+     * Picks the correct claim center banner based on the player's current dimension.
+     */
+    private Location getBannerForPlayerDimension(Player p, Team team) {
+        World w = p.getWorld();
+        if (w == null) return null;
+
+        World.Environment env = w.getEnvironment();
+
+        // Overworld uses main banner location
+        if (env == World.Environment.NORMAL) {
+            return team.getBannerLocation();
+        }
+
+        // Nether uses dimensional banner
+        if (env == World.Environment.NETHER) {
+            return team.getDimensionalBanner("NETHER");
+        }
+
+        // End uses dimensional banner (support both keys)
+        if (env == World.Environment.THE_END) {
+            Location loc = team.getDimensionalBanner("END");
+            if (loc == null) loc = team.getDimensionalBanner("THE_END");
+            return loc;
+        }
+
+        // Fallback for custom dimensions
+        return team.getBannerLocation();
     }
 
     private double getEffectRadiusMultiplier(Team team) {
@@ -76,7 +115,7 @@ public class BeaconEffectManager {
     }
 
     private void apply(Player p, Team team) {
-        // ✅ FREE saturation inside claim (benefits from radius multiplier because it shares the same inside-claim check)
+        // ✅ FREE saturation inside claim
         applyFreeSaturation(p);
 
         applyEffect(p, team, "speed",      PotionEffectType.SPEED);
@@ -87,12 +126,6 @@ public class BeaconEffectManager {
         applyEffect(p, team, "jump",       PotionEffectType.JUMP_BOOST);
     }
 
-    /**
-     * Gives free Saturation while inside claim.
-     *
-     * We intentionally use a short duration so it naturally expires shortly after leaving the claim
-     * (since tick() only applies effects while inside claim).
-     */
     private void applyFreeSaturation(Player p) {
         if (p == null) return;
 
@@ -113,7 +146,6 @@ public class BeaconEffectManager {
             return;
         }
 
-        // amplifiers start at 0 (I = 0, II = 1, etc.)
         p.addPotionEffect(new PotionEffect(
                 type,
                 20,           // 1 second, refreshed every tick() call

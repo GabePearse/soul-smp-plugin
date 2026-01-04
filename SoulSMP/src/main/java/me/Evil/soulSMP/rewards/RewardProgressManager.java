@@ -136,16 +136,16 @@ public class RewardProgressManager {
     }
 
     /**
-     * Calculates how many tokens to award for level-ups, respecting your rules:
+     * Calculates how many tokens to award for level-ups:
      * - Only levels >= 30 reward tokens
      * - Each level rewards ONLY ONCE (tracked by lastRewardedLevel)
-     * - Tokens per level = floor(level / 2)
+     * - Tokens per level = 1
      *
-     * This supports skipping levels (ex: 29 -> 33 will reward 30..33).
+     * Supports skipping levels (ex: 29 -> 33 will reward 30..33 = 4 tokens).
      *
      * IMPORTANT:
      * - This method does not mutate state.
-     * - Call {@link #setLastRewardedLevel(UUID, int)} after paying out.
+     * - Call setLastRewardedLevel(uuid, newLevel) after paying out (or use payAndMarkLevels).
      */
     public int calculateLevelTokensToAward(UUID uuid, int newLevel) {
         if (uuid == null) return 0;
@@ -159,13 +159,10 @@ public class RewardProgressManager {
         int start = Math.max(30, last + 1);
         if (newLevel < start) return 0;
 
-        int total = 0;
-        for (int lvl = start; lvl <= newLevel; lvl++) {
-            total += (lvl / 2); // floor(level/2)
-        }
-
-        return total;
+        // 1 token per newly reached level (>=30)
+        return (newLevel - start) + 1;
     }
+
 
     /**
      * Convenience helper:

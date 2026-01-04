@@ -1,0 +1,35 @@
+# koth.yml
+settings:
+  spawn-radius: 25
+  hill-radius: 2
+  win-seconds: 300
+  contested-requires-unique-teams: 2
+
+kit:
+  clear-inventory: true
+
+  armor:
+    helmet: IRON_HELMET
+    chestplate: IRON_CHESTPLATE
+    leggings: IRON_LEGGINGS
+    boots: IRON_BOOTS
+
+  items:
+    - material: IRON_SWORD
+      amount: 1
+      enchants:
+        SHARPNESS: 1
+    - material: BOW
+      amount: 1
+      enchants:
+        POWER: 1
+    - material: ARROW
+      amount: 32
+    - material: COOKED_BEEF
+      amount: 16
+
+  # Optional: effects applied on respawn (seconds, amplifier)
+  effects:
+    - type: SPEED
+      seconds: 5
+      amplifier: 0

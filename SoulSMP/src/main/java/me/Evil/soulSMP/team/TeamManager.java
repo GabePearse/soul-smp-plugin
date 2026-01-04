@@ -28,7 +28,6 @@ public class TeamManager {
 
     private LeaderboardManager leaderboard;
 
-    // ✅ Same rules as TeamCommand to guarantee safety even if called elsewhere
     private static final Pattern TEAM_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{3,16}$");
 
     public TeamManager(Plugin plugin) {
@@ -101,7 +100,6 @@ public class TeamManager {
         name = name.trim();
         if (!TEAM_NAME_PATTERN.matcher(name).matches()) return false;
 
-        // extra safety; regex already blocks these
         return !name.contains(".") && !name.contains("/") && !name.contains("\\") && !name.contains(":");
     }
 
@@ -123,11 +121,6 @@ public class TeamManager {
         if (teamsByName.containsKey(key)) return null;
 
         Team team = new Team(name, owner.getUniqueId(), getMaxTeamMembers());
-
-        // ✅ NEW: ensure it starts at 0 lifetime purchases (if your Team ctor doesn’t already)
-        // If you add a default in Team constructor you can delete this line.
-        team.setLivesPurchased(0);
-
         teamsByName.put(key, team);
         teamsByPlayer.put(owner.getUniqueId(), team);
 
@@ -270,19 +263,61 @@ public class TeamManager {
         return null;
     }
 
+    // -------------------------
+    // ✅ Dimension-aware banner center
+    // -------------------------
+    private Location getBannerCenterForWorld(Team team, World w) {
+        if (team == null || w == null) return null;
+
+        World.Environment env = w.getEnvironment();
+
+        // Overworld uses main banner
+        if (env == World.Environment.NORMAL) {
+            return team.getBannerLocation();
+        }
+
+        // Nether / End use dimensional banners
+        if (env == World.Environment.NETHER) {
+            return team.getDimensionalBanner("NETHER");
+        }
+
+        if (env == World.Environment.THE_END) {
+            // your code normalizes keys, either "END" or "THE_END" is fine:
+            Location loc = team.getDimensionalBanner("END");
+            if (loc == null) loc = team.getDimensionalBanner("THE_END");
+            return loc;
+        }
+
+        // Anything custom: fallback to main banner (or null)
+        return team.getBannerLocation();
+    }
+
     // --- Border visualization ---
 
     public void showTeamBorder(Player p) {
         Team t = getTeamByPlayer(p);
         if (t == null) { p.sendMessage(ChatColor.RED + "You are not in a team."); return; }
-        if (!t.hasBannerLocation()) { p.sendMessage(ChatColor.RED + "Your team has no banner placed."); return; }
 
-        Location c = t.getBannerLocation();
-        World w = c.getWorld();
-        if (w == null) return;
+        World playerWorld = p.getWorld();
+        Location c = getBannerCenterForWorld(t, playerWorld);
 
-        if (p.getWorld() != w) {
-            p.sendMessage(ChatColor.RED + "You must be in " + w.getName() + " to view your claim border.");
+        if (c == null || c.getWorld() == null) {
+            World.Environment env = playerWorld.getEnvironment();
+            if (env == World.Environment.NETHER) {
+                p.sendMessage(ChatColor.RED + "Your team has no Nether banner placed.");
+                p.sendMessage(ChatColor.GRAY + "Place your team's Nether banner to set your Nether claim center.");
+            } else if (env == World.Environment.THE_END) {
+                p.sendMessage(ChatColor.RED + "Your team has no End banner placed.");
+                p.sendMessage(ChatColor.GRAY + "Place your team's End banner to set your End claim center.");
+            } else {
+                p.sendMessage(ChatColor.RED + "Your team has no banner placed.");
+            }
+            return;
+        }
+
+        // Must be in same world as the banner center we chose
+        if (p.getWorld() != c.getWorld()) {
+            p.sendMessage(ChatColor.RED + "You must be in " + c.getWorld().getName() + " to view this border.");
             return;
         }
 
@@ -301,7 +336,7 @@ public class TeamManager {
                 if (ticks >= 200) { cancel(); return; }
 
                 int playerY = p.getLocation().getBlockY();
-                draw(w, minX, maxX, minZ, maxZ, playerY);
+                draw(c.getWorld(), minX, maxX, minZ, maxZ, playerY);
 
                 ticks += 10;
             }
@@ -421,10 +456,7 @@ public class TeamManager {
 
                 existing.setOwner(loaded.getOwner());
                 existing.setLives(loaded.getLives());
-
-                // ✅ NEW: keep lifetime lives purchase counter in sync
                 existing.setLivesPurchased(loaded.getLivesPurchased());
-
                 existing.setClaimRadius(loaded.getClaimRadius());
                 existing.setVaultSize(loaded.getVaultSize());
                 existing.setEffectMap(loaded.getEffectMap());

@@ -1,5 +1,6 @@
 package me.Evil.soulSMP.listeners;
 
+import me.Evil.soulSMP.koth.KothManager;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -15,9 +16,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 public class FirstJoinSpawnListener implements Listener {
 
     private final JavaPlugin plugin;
+    private final KothManager koth;
 
-    public FirstJoinSpawnListener(JavaPlugin plugin) {
+    public FirstJoinSpawnListener(JavaPlugin plugin, KothManager koth) {
         this.plugin = plugin;
+        this.koth = koth;
     }
 
     private ConfigurationSection spawnRoot() {
@@ -41,7 +44,6 @@ public class FirstJoinSpawnListener implements Listener {
         return fj != null && fj.getBoolean("debug-force", false);
     }
 
-    /** This is the world you want to force respawns into (Overworld). */
     private World getDefaultRespawnWorld() {
         ConfigurationSection fj = firstJoinSection();
         String worldName = (fj != null) ? fj.getString("world", "world") : "world";
@@ -73,8 +75,16 @@ public class FirstJoinSpawnListener implements Listener {
         return new Location(world, x, y, z, yaw, pitch);
     }
 
+    private boolean kothOverridesFor(Player p) {
+        return koth != null && koth.isActive() && koth.isParticipant(p.getUniqueId());
+    }
+
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent e) {
+
+        // ✅ Only override spawn if THIS joining player is a KOTH participant
+        if (kothOverridesFor(e.getPlayer())) return;
+
         Player p = e.getPlayer();
         if (!isDefaultRespawnEnabled()) return;
 
@@ -90,22 +100,22 @@ public class FirstJoinSpawnListener implements Listener {
         });
     }
 
-
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onRespawn(PlayerRespawnEvent e) {
+
+        // ✅ Only override spawn if THIS respawning player is a KOTH participant
+        if (kothOverridesFor(e.getPlayer())) return;
+
         if (!isDefaultRespawnEnabled()) return;
 
-        // Respect bed/anchor always (including respawn anchors in the Nether)
         if (e.isBedSpawn() || e.isAnchorSpawn()) return;
 
-        World defaultWorld = getDefaultRespawnWorld(); // <-- ALWAYS overworld (config-driven)
+        World defaultWorld = getDefaultRespawnWorld();
         Location spawn = getConfiguredSpawn(defaultWorld);
         if (spawn == null) return;
 
-        // Force respawn location to overworld spawn
         e.setRespawnLocation(spawn);
 
-        // Persist as their default respawn too
         Bukkit.getScheduler().runTask(plugin, () -> e.getPlayer().setRespawnLocation(spawn, true));
     }
 }

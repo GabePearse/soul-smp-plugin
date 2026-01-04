@@ -2,7 +2,7 @@ package me.Evil.soulSMP.listeners;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
-import me.Evil.soulSMP.upgrades.*;
+import me.Evil.soulSMP.beacon.*;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.shop.BannerShopSettings;
 import me.Evil.soulSMP.shop.TeamBannerShopGui;

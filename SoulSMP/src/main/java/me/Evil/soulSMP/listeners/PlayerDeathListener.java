@@ -1,5 +1,6 @@
 package me.Evil.soulSMP.listeners;
 
+import me.Evil.soulSMP.koth.KothManager;
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
@@ -16,17 +17,24 @@ public class PlayerDeathListener implements Listener {
 
     private final TeamManager teamManager;
     private final SoulTokenManager tokenManager;
+    private final KothManager koth;
 
-    public PlayerDeathListener(TeamManager teamManager, SoulTokenManager tokenManager) {
+    public PlayerDeathListener(TeamManager teamManager, SoulTokenManager tokenManager, KothManager koth) {
         this.teamManager = teamManager;
         this.tokenManager = tokenManager;
+        this.koth = koth;
     }
 
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
+
         Player player = event.getEntity();
 
-        // Team check
+        // ✅ KOTH mode: only participants are exempt from life loss/token drops
+        if (koth != null && koth.isActive() && koth.isParticipant(player.getUniqueId())) {
+            return;
+        }
+
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
             return;
@@ -34,15 +42,10 @@ public class PlayerDeathListener implements Listener {
 
         int livesBefore = team.getLives();
         if (livesBefore <= 0) {
-            // Team is already at 0; don't go negative, just exit.
             return;
         }
 
-        // ✅ Drop ONLY ONE Soul Token ONLY IF:
-        // - killed by a player
-        // - victim is in a team with lives remaining (we already checked livesBefore > 0)
-        // - killer is NOT in the victim's team
-        Player killer = player.getKiller(); // only non-null when last damage was caused by a player
+        Player killer = player.getKiller();
         if (killer != null) {
             Team killerTeam = teamManager.getTeamByPlayer(killer);
 
@@ -55,18 +58,13 @@ public class PlayerDeathListener implements Listener {
             }
         }
 
-        // Reduce team lives and handle wipe logic
-        team.removeLife(); // team.lives -= 1
+        team.removeLife();
         int livesAfter = team.getLives();
 
         if (livesAfter <= 0) {
-            // Clamp to 0 just to be safe
             team.setLives(0);
-
-            // Drop all claims by setting claim radius to 0
             team.setClaimRadius(0);
 
-            // Broadcast banner coordinates if we have a banner location
             Location bannerLoc = team.getBannerLocation();
             if (bannerLoc != null && bannerLoc.getWorld() != null) {
                 String msg = ChatColor.DARK_RED + "A team has shattered."
@@ -78,13 +76,11 @@ public class PlayerDeathListener implements Listener {
 
                 Bukkit.broadcastMessage(msg);
             } else {
-                // Fallback if somehow no banner location is set
                 String msg = ChatColor.DARK_RED + "A team has shattered." + ChatColor.RED + team.getName() + ChatColor.GRAY + " has run out of lives!";
                 Bukkit.broadcastMessage(msg);
             }
         }
 
-        // Persist changes to teams.yml
         teamManager.saveTeam(team);
     }
 }

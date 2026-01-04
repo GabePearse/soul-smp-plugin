@@ -50,3 +50,12 @@ commands:
   stuck:
     description: Kill yourself if you are stuck
     usage: /stuck
+  koth:
+    description: Start/stop King of the Hill mode
+    usage: /koth <x> <y> <z> | /koth stop
+    permission: soulsmp.admin
+  voucher:
+    description: Give vouchers (name tags) that upgrade a team.
+    usage: /voucher give <player> <type> [amount] [extra] [count]
+    permission: soulsmp.admin
+

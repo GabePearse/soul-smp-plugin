@@ -1,4 +1,4 @@
-package me.Evil.soulSMP.upgrades;
+package me.Evil.soulSMP.beacon;
 
 import me.Evil.soulSMP.team.Team;
 import org.bukkit.Bukkit;
