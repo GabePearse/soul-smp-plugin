@@ -30,6 +30,13 @@ public class KothManager {
     private int taskId = -1;
 
     // ======================
+    // Return location (teleport back)
+    // ======================
+
+    private final Map<UUID, Location> returnLocations = new HashMap<>();
+    private final Set<UUID> pendingReturn = new HashSet<>();
+
+    // ======================
     // Inventory save/restore
     // ======================
 
@@ -56,6 +63,12 @@ public class KothManager {
     private final Map<UUID, SavedInv> savedInventories = new HashMap<>();
     private final Set<UUID> pendingRestore = new HashSet<>();
 
+    // ======================
+    // Per-event win seconds override (for /koth 60)
+    // ======================
+
+    private Integer winSecondsOverride = null;
+
     public KothManager(Plugin plugin, TeamManager teams, KothKitSettings kit) {
         this.plugin = plugin;
         this.teams = teams;
@@ -75,8 +88,10 @@ public class KothManager {
 
     public Location getCenter() { return center == null ? null : center.clone(); }
 
-    /** For /koth status */
-    public int getWinSeconds() { return kit.getWinSeconds(); }
+    /** Current goal seconds (supports /koth <seconds> override) */
+    public int getWinSeconds() {
+        return (winSecondsOverride != null ? winSecondsOverride : kit.getWinSeconds());
+    }
 
     /** For /koth status (snapshot so callers can’t mutate live map) */
     public Map<String, Integer> getProgressSnapshot() {
@@ -92,6 +107,23 @@ public class KothManager {
         UUID id = p.getUniqueId();
         if (!pendingRestore.contains(id)) return;
         restorePlayerInventory(p);
+    }
+
+    // ----------------------
+    // Pending return helpers
+    // ----------------------
+
+    public void teleportBackIfPending(Player p) {
+        if (p == null) return;
+        UUID id = p.getUniqueId();
+        if (!pendingReturn.contains(id)) return;
+
+        Location back = returnLocations.get(id);
+        if (back != null && back.getWorld() != null) {
+            p.teleport(back);
+        }
+        pendingReturn.remove(id);
+        returnLocations.remove(id);
     }
 
     private void savePlayerInventory(Player p) {
@@ -143,18 +175,39 @@ public class KothManager {
     // Lifecycle
     // ======================
 
-    /** /koth x y z -> prepares KOTH and opens join */
+    /** /koth x y z -> prepares KOTH and opens join (uses default kit win seconds) */
     public void prepare(Location c) {
+        prepareInternal(c, null);
+    }
+
+    /** /koth <seconds> -> prepares KOTH at sender block for custom win seconds */
+    public void prepareForSeconds(Location c, int seconds) {
+        int clamped = Math.max(5, seconds); // prevent silly 0/negative; feel free to change min
+        prepareInternal(c, clamped);
+    }
+
+    private void prepareInternal(Location c, Integer winSecondsOverride) {
         if (c == null || c.getWorld() == null) return;
         if (active) return;
 
         this.center = c.clone();
         this.prepared = true;
+
         this.progressSecondsByTeam.clear();
         this.participants.clear();
 
+        // reset return tracking each new prepare
+        this.returnLocations.clear();
+        this.pendingReturn.clear();
+
+        // set per-event win seconds
+        this.winSecondsOverride = winSecondsOverride;
+
+        int goal = getWinSeconds();
+
         Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "KOTH is ready!"
-                + ChatColor.YELLOW + " Hill at "
+                + ChatColor.YELLOW + " Goal: " + ChatColor.AQUA + formatTime(goal)
+                + ChatColor.YELLOW + " — Hill at "
                 + ChatColor.AQUA + center.getBlockX() + ", " + center.getBlockY() + ", " + center.getBlockZ()
                 + ChatColor.YELLOW + " — type " + ChatColor.GREEN + "/koth join"
                 + ChatColor.YELLOW + " to join.");
@@ -163,7 +216,7 @@ public class KothManager {
     public boolean join(Player p) {
         if (p == null) return false;
         if (!prepared) {
-            p.sendMessage(ChatColor.RED + "KOTH is not prepared. Use /koth <x> <y> <z> first.");
+            p.sendMessage(ChatColor.RED + "KOTH is not prepared. Use /koth <x> <y> <z> or /koth <seconds> first.");
             return false;
         }
         if (active) {
@@ -177,6 +230,9 @@ public class KothManager {
 
         boolean added = participants.add(p.getUniqueId());
         if (added) {
+            // ✅ save their "return to" location exactly when they join
+            returnLocations.putIfAbsent(p.getUniqueId(), p.getLocation().clone());
+
             p.sendMessage(ChatColor.GREEN + "You joined KOTH. (" + participants.size() + " players)");
         } else {
             p.sendMessage(ChatColor.YELLOW + "You are already joined.");
@@ -232,7 +288,10 @@ public class KothManager {
         if (taskId != -1) Bukkit.getScheduler().cancelTask(taskId);
         taskId = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L).getTaskId();
 
+        int goal = getWinSeconds();
+
         Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "KOTH started!"
+                + ChatColor.YELLOW + " Goal: " + ChatColor.AQUA + formatTime(goal)
                 + ChatColor.YELLOW + " Participants: " + ChatColor.AQUA + teleported
                 + ChatColor.YELLOW + " — Hill at "
                 + ChatColor.AQUA + center.getBlockX() + ", " + center.getBlockY() + ", " + center.getBlockZ());
@@ -252,6 +311,20 @@ public class KothManager {
         if (taskId != -1) {
             Bukkit.getScheduler().cancelTask(taskId);
             taskId = -1;
+        }
+
+        // ✅ Teleport all joined players back to where they were when they joined
+        for (UUID id : new HashSet<>(participants)) {
+            Location back = returnLocations.get(id);
+            if (back == null || back.getWorld() == null) continue;
+
+            Player p = Bukkit.getPlayer(id);
+            if (p != null && p.isOnline()) {
+                p.teleport(back);
+            } else {
+                // if they reconnect later, we can still return them
+                pendingReturn.add(id);
+            }
         }
 
         // ✅ Restore inventories for all who were saved (participants)
@@ -278,8 +351,11 @@ public class KothManager {
         board = null;
         obj = null;
 
-        // Clear participants only if event was active; if it was just prepared, also clear.
+        // Clear participants; keep pendingReturn/returnLocations only for offline returns
         participants.clear();
+
+        // reset per-event win seconds after event finishes/cancels
+        winSecondsOverride = null;
 
         if (announce) {
             Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + (wasActive ? "KOTH ended." : "KOTH cancelled."));
@@ -318,7 +394,9 @@ public class KothManager {
             int newVal = progressSecondsByTeam.getOrDefault(controlling, 0) + 1;
             progressSecondsByTeam.put(controlling, newVal);
 
-            if (newVal >= kit.getWinSeconds()) {
+            int goal = getWinSeconds();
+
+            if (newVal >= goal) {
                 Bukkit.broadcastMessage(ChatColor.GREEN + "" + ChatColor.BOLD + "KOTH Winner: "
                         + ChatColor.AQUA + controlling
                         + ChatColor.GREEN + " (" + formatTime(newVal) + ")");
@@ -334,6 +412,14 @@ public class KothManager {
         if (loc == null || center == null) return false;
         if (loc.getWorld() != center.getWorld()) return false;
 
+        // ✅ Vertical capture band:
+        // within 5 blocks above center, and within 2 blocks below center
+        int cy = center.getBlockY();
+        int py = loc.getBlockY();
+        if (py > cy + 5) return false;
+        if (py < cy - 2) return false;
+
+        // Horizontal radius
         double dx = loc.getX() - center.getX();
         double dz = loc.getZ() - center.getZ();
         double distSq = dx * dx + dz * dz;
@@ -522,14 +608,14 @@ public class KothManager {
         int line = 15;
 
         obj.getScore(ChatColor.GRAY + "Status: " + formatStatus(status)).setScore(line--);
-        obj.getScore(ChatColor.GRAY + "Goal: " + ChatColor.AQUA + formatTime(kit.getWinSeconds())).setScore(line--);
+        obj.getScore(ChatColor.GRAY + "Goal: " + ChatColor.AQUA + formatTime(getWinSeconds())).setScore(line--);
         obj.getScore(ChatColor.DARK_GRAY.toString()).setScore(line--);
 
         List<Map.Entry<String, Integer>> sorted = new ArrayList<>(progressSecondsByTeam.entrySet());
         sorted.sort((a, b) -> Integer.compare(b.getValue(), a.getValue()));
 
         int shown = 0;
-        int goal = kit.getWinSeconds();
+        int goal = getWinSeconds();
 
         for (Map.Entry<String, Integer> e : sorted) {
             if (shown >= 5) break;

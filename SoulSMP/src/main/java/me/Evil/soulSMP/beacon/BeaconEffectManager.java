@@ -129,15 +129,26 @@ public class BeaconEffectManager {
     private void applyFreeSaturation(Player p) {
         if (p == null) return;
 
+        PotionEffect existing = p.getPotionEffect(PotionEffectType.SATURATION);
+
+        // Only refresh if missing or about to expire
+        if (existing != null) {
+            // amplifier 0 = Saturation I
+            if (existing.getAmplifier() >= 0 && existing.getDuration() > 30) {
+                return;
+            }
+        }
+
         p.addPotionEffect(new PotionEffect(
                 PotionEffectType.SATURATION,
-                40,     // 2 seconds
+                80,     // 4 seconds buffer
                 0,      // Saturation I
                 true,   // ambient
                 false,  // particles
                 false   // icon
         ));
     }
+
 
     private void applyEffect(Player p, Team team, String id, PotionEffectType type) {
         int level = team.getEffectLevel(id);
@@ -148,11 +159,11 @@ public class BeaconEffectManager {
 
         p.addPotionEffect(new PotionEffect(
                 type,
-                20,           // 1 second, refreshed every tick() call
+                60,           // 3 seconds, refreshed every tick() call
                 level - 1,
                 true,         // ambient
                 false,        // particles
-                false         // icon
+                true         // icon
         ));
     }
 }

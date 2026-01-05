@@ -229,16 +229,23 @@ public class TeamManager {
 
     public Team removePlayerFromTeam(Player p) {
         if (p == null) return null;
+        return removePlayerFromTeam(p.getUniqueId());
+    }
 
-        UUID id = p.getUniqueId();
+    // ✅ NEW: offline-safe removal by UUID
+    public Team removePlayerFromTeam(UUID id) {
+        if (id == null) return null;
+
         Team team = teamsByPlayer.remove(id);
         if (team == null) return null;
 
         team.removeMember(id);
 
-        if (team.getMembers().isEmpty())
+        if (team.getMembers().isEmpty()) {
             disbandTeam(team);
-        else saveTeam(team);
+        } else {
+            saveTeam(team);
+        }
 
         return team;
     }
@@ -250,6 +257,45 @@ public class TeamManager {
     }
 
     public enum JoinResult { SUCCESS, TEAM_FULL, ALREADY_IN_TEAM, ERROR }
+
+    // ✅ NEW: kick helper with leader-only check
+    public enum KickResult {
+        SUCCESS,
+        NOT_IN_TEAM,
+        NOT_LEADER,
+        TARGET_NOT_IN_TEAM,
+        CANNOT_KICK_SELF,
+        CANNOT_KICK_LEADER,
+        ERROR
+    }
+
+    public KickResult kickPlayerFromTeam(Player leader, UUID target) {
+        if (leader == null || target == null) return KickResult.ERROR;
+
+        Team team = getTeamByPlayer(leader);
+        if (team == null) return KickResult.NOT_IN_TEAM;
+
+        if (team.getOwner() == null || !team.getOwner().equals(leader.getUniqueId())) {
+            return KickResult.NOT_LEADER;
+        }
+
+        if (leader.getUniqueId().equals(target)) return KickResult.CANNOT_KICK_SELF;
+        if (team.getOwner().equals(target)) return KickResult.CANNOT_KICK_LEADER;
+
+        if (!team.isMember(target)) return KickResult.TARGET_NOT_IN_TEAM;
+
+        // remove from maps + team set
+        teamsByPlayer.remove(target);
+        team.removeMember(target);
+
+        if (team.getMembers().isEmpty()) {
+            disbandTeam(team);
+        } else {
+            saveTeam(team);
+        }
+
+        return KickResult.SUCCESS;
+    }
 
     // --- Banner design uniqueness ---
 
@@ -282,13 +328,11 @@ public class TeamManager {
         }
 
         if (env == World.Environment.THE_END) {
-            // your code normalizes keys, either "END" or "THE_END" is fine:
             Location loc = team.getDimensionalBanner("END");
             if (loc == null) loc = team.getDimensionalBanner("THE_END");
             return loc;
         }
 
-        // Anything custom: fallback to main banner (or null)
         return team.getBannerLocation();
     }
 
@@ -315,7 +359,6 @@ public class TeamManager {
             return;
         }
 
-        // Must be in same world as the banner center we chose
         if (p.getWorld() != c.getWorld()) {
             p.sendMessage(ChatColor.RED + "You must be in " + c.getWorld().getName() + " to view this border.");
             return;

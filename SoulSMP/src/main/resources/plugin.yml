@@ -1,6 +1,6 @@
 name: SoulSMP
 main: me.Evil.soulSMP.SoulSMP
-version: 2.0.0
+version: 2.1.0
 api-version: 1.20
 author: Evil
 description: Team-based SMP with banner claims.
@@ -57,4 +57,11 @@ commands:
     description: Give vouchers (name tags) that upgrade a team.
     usage: /voucher give <player> <type> [amount] [extra] [count]
     permission: soulsmp.admin
+  opmode:
+    description: Toggle creative op mode with inventory/xp/location snapshot.
+    usage: /opmode
+
+permissions:
+  soulsmp.opmode:
+    default: op
 

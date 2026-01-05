@@ -1,9 +1,9 @@
 name: SoulSMP
 main: me.Evil.soulSMP.SoulSMP
-version: 2.0.0
+version: 2.0.1
 api-version: 1.20
 author: Evil
-description: Team-based SMP with banner claims and Soul Token currency.
+description: Team-based SMP with banner claims.
 
 commands:
   ssmp:
@@ -51,11 +51,17 @@ commands:
     description: Kill yourself if you are stuck
     usage: /stuck
   koth:
-    description: Start/stop King of the Hill mode
-    usage: /koth <x> <y> <z> | /koth stop
-    permission: soulsmp.admin
+    description: King of the Hill (prepare/join/start)
+    usage: /koth <x> <y> <z> | /koth join | /koth leave | /koth start | /koth stop | /koth status
   voucher:
     description: Give vouchers (name tags) that upgrade a team.
     usage: /voucher give <player> <type> [amount] [extra] [count]
     permission: soulsmp.admin
+  opmode:
+    description: Toggle creative op mode with inventory/xp/location snapshot.
+    usage: /opmode
+
+permissions:
+  soulsmp.opmode:
+    default: op
 

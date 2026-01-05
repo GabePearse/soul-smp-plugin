@@ -1,12 +1,17 @@
 me\Evil\soulSMP\beacon\BeaconEffectManager.class
 me\Evil\soulSMP\spawn\SpawnClaimConfig.class
+me\Evil\soulSMP\listeners\SpawnListener.class
 me\Evil\soulSMP\commands\NpcCommand.class
+me\Evil\soulSMP\team\TeamManager$KickResult.class
 me\Evil\soulSMP\vouchers\VoucherType.class
 me\Evil\soulSMP\koth\KothManager.class
 me\Evil\soulSMP\spawn\SpawnClaimConfig$WorldSettings.class
+me\Evil\soulSMP\commands\TeamCommand$1.class
 me\Evil\soulSMP\commands\KothCommand.class
+me\Evil\soulSMP\opmode\OpModeManager$Snapshot.class
 me\Evil\soulSMP\beacon\BeaconEffectLevel.class
 me\Evil\soulSMP\koth\KothManager$SavedInv.class
+me\Evil\soulSMP\opmode\OpModeManager.class
 me\Evil\soulSMP\vouchers\VoucherMailManager.class
 me\Evil\soulSMP\npc\MannequinNpcListener.class
 me\Evil\soulSMP\commands\TextCommand.class
@@ -24,6 +29,7 @@ me\Evil\soulSMP\beacon\BeaconEffectsHolder.class
 me\Evil\soulSMP\commands\TextDisplayCommand.class
 me\Evil\soulSMP\spawn\SpawnClaim.class
 me\Evil\soulSMP\npc\NpcType.class
+me\Evil\soulSMP\listeners\ChatListener.class
 me\Evil\soulSMP\listeners\VoucherListener.class
 me\Evil\soulSMP\npc\MannequinNpcListener$1.class
 me\Evil\soulSMP\listeners\FirstJoinSpawnListener.class
@@ -33,5 +39,8 @@ me\Evil\soulSMP\listeners\VoucherDeliveryListener.class
 me\Evil\soulSMP\rewards\RewardProgressManager.class
 me\Evil\soulSMP\vouchers\VoucherItem.class
 me\Evil\soulSMP\vouchers\VoucherItem$1.class
+me\Evil\soulSMP\listeners\AnvilBeyondVanillaListener.class
+me\Evil\soulSMP\listeners\SpawnListener$1.class
 me\Evil\soulSMP\commands\VoucherCommand.class
 me\Evil\soulSMP\listeners\VoucherListener$1.class
+me\Evil\soulSMP\commands\OpModeCommand.class

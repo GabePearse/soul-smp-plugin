@@ -1,4 +1,3 @@
-// FILE: me/Evil/soulSMP/listeners/KothListener.java
 package me.Evil.soulSMP.listeners;
 
 import me.Evil.soulSMP.koth.KothManager;
@@ -39,9 +38,12 @@ public class KothListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent e) {
 
-        // ✅ If KOTH ended while they were offline, restore their inventory now
+        // ✅ If KOTH ended while they were offline, restore inventory AND teleport them back now
         if (koth != null && !koth.isActive()) {
-            Bukkit.getScheduler().runTask(plugin, () -> koth.restoreIfPending(e.getPlayer()));
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                koth.restoreIfPending(e.getPlayer());
+                koth.teleportBackIfPending(e.getPlayer());
+            });
             return;
         }
 

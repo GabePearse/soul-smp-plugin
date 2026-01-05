@@ -29,6 +29,7 @@ import me.Evil.soulSMP.beacon.BeaconEffectSettings;
 import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
 import me.Evil.soulSMP.vault.TeamVaultManager;
 import me.Evil.soulSMP.vouchers.VoucherMailManager;
+import me.Evil.soulSMP.opmode.OpModeManager;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -91,6 +92,10 @@ public class SoulSMP extends JavaPlugin {
     // VOUCHER MAIL
     private VoucherMailManager voucherMail;
 
+    // OP MODE
+    private OpModeManager opModeManager;
+
+
 
     public MannequinNpcManager getNpcManager() {
         return npcManager;
@@ -108,6 +113,10 @@ public class SoulSMP extends JavaPlugin {
         teamChatManager = new TeamChatManager();
         vaultManager = new TeamVaultManager(this, teamManager);
         tokenManager = new SoulTokenManager(this);
+
+        // OP MODE
+        opModeManager = new OpModeManager(this);
+
 
         // VOUCHER MAIL MANAGER
         voucherMail = new VoucherMailManager(this);
@@ -197,6 +206,8 @@ public class SoulSMP extends JavaPlugin {
         if (bankManager != null) bankManager.save();
         if (rewardProgressManager != null) rewardProgressManager.save();
 
+        if (opModeManager != null) opModeManager.save();
+
         if (kothManager != null && kothManager.isActive()) {
             kothManager.stop(false);
         }
@@ -250,6 +261,10 @@ public class SoulSMP extends JavaPlugin {
         if (kothKitSettings == null) kothKitSettings = new KothKitSettings(this);
         kothKitSettings.reload();
 
+        // Reload Op
+        if (opModeManager != null) opModeManager.load();
+
+
         // Reset event registrations
         org.bukkit.event.HandlerList.unregisterAll(this);
 
@@ -287,7 +302,7 @@ public class SoulSMP extends JavaPlugin {
         }
 
         if (getCommand("team") != null) {
-            TeamCommand cmd = new TeamCommand(teamManager);
+            TeamCommand cmd = new TeamCommand(teamManager, teamChatManager);
             getCommand("team").setExecutor(cmd);
             getCommand("team").setTabCompleter(cmd);
         }
@@ -340,6 +355,10 @@ public class SoulSMP extends JavaPlugin {
             getCommand("voucher").setTabCompleter(v);
         }
 
+        if (getCommand("opmode") != null) {
+            getCommand("opmode").setExecutor(new OpModeCommand(opModeManager));
+        }
+
     }
 
     private void registerListeners(SellEngine sellEngine) {
@@ -351,8 +370,8 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new StoreListener(), this);
         Bukkit.getPluginManager().registerEvents(new MannequinNpcListener(npcManager, storeManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamActivityListener(teamManager, upkeepManager), this);
-        Bukkit.getPluginManager().registerEvents(new TeamChatListener(teamManager, teamChatManager), this);
-        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager), this);
+        Bukkit.getPluginManager().registerEvents(new ChatListener(teamManager, teamChatManager), this);
+        Bukkit.getPluginManager().registerEvents(new BannerListener(this, teamManager, vaultManager, opModeManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamVaultListener(vaultManager, bannerShopSettings, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new SoulTokenProtectionListener(tokenManager), this);
         Bukkit.getPluginManager().registerEvents(new TeamBannerShopListener(teamManager, tokenManager, bannerShopSettings, effectSettings, dimensionBannerShopSettings, upkeepManager), this);
@@ -366,12 +385,14 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new KothListener(this, kothManager), this);
         Bukkit.getPluginManager().registerEvents(new VoucherListener(this, teamManager, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new VoucherDeliveryListener(voucherMail), this);
+        getServer().getPluginManager().registerEvents(new AnvilBeyondVanillaListener(), this);
+        getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
     }
 
     private void restartTasks() {
 
         BeaconEffectManager aura = new BeaconEffectManager(teamManager);
-        auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 20L, 20L).getTaskId();
+        auraTaskId = Bukkit.getScheduler().runTaskTimer(this, aura::tick, 10L, 10L).getTaskId();
 
         long ticksPerDay = 20L * 60L * 60L * 24L;
         upkeepTaskId = Bukkit.getScheduler()

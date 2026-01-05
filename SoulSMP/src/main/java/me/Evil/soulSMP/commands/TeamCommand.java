@@ -1,5 +1,6 @@
 package me.Evil.soulSMP.commands;
 
+import me.Evil.soulSMP.chat.TeamChatManager;
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;
 import me.Evil.soulSMP.upkeep.UpkeepStatus;
@@ -8,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -21,15 +23,16 @@ import java.util.regex.Pattern;
 public class TeamCommand implements CommandExecutor, TabCompleter {
 
     private final TeamManager teamManager;
+    private final TeamChatManager teamChatManager; // ✅ NEW
 
     // ✅ Safe team name rules:
     // - 3 to 16 chars
     // - letters, numbers, underscore only
-    // This prevents '.', '/', ':', etc. from breaking YAML paths, commands, etc.
     private static final Pattern TEAM_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{3,16}$");
 
-    public TeamCommand(TeamManager teamManager) {
+    public TeamCommand(TeamManager teamManager, TeamChatManager teamChatManager) {
         this.teamManager = teamManager;
+        this.teamChatManager = teamChatManager;
     }
 
     // =====================
@@ -58,6 +61,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
             case "leave" -> handleLeave(player);
             case "disband" -> handleDisband(player);
             case "transfer" -> handleTransfer(player, args);
+            case "kick" -> handleKick(player, args);          // ✅ NEW: /team kick <player>
             case "banner" -> handleBanner(player, args);
             case "border" -> handleBorder(player);
             case "invite" -> handleInvite(player, args);
@@ -82,6 +86,7 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "/team leave " + ChatColor.GRAY + "- Leave your team");
         player.sendMessage(ChatColor.YELLOW + "/team disband " + ChatColor.GRAY + "- Disband your team (owner only)");
         player.sendMessage(ChatColor.YELLOW + "/team transfer <player> " + ChatColor.GRAY + "- Transfer team ownership");
+        player.sendMessage(ChatColor.YELLOW + "/team kick <player> " + ChatColor.GRAY + "- Kick a member (owner only)");
         player.sendMessage(ChatColor.YELLOW + "/team invite <player> " + ChatColor.GRAY + "- Invite a player to your team");
         player.sendMessage(ChatColor.YELLOW + "/team accept " + ChatColor.GRAY + "- Accept a team invite");
         player.sendMessage(ChatColor.YELLOW + "/team border " + ChatColor.GRAY + "- Show your team's claim border");
@@ -101,16 +106,11 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                 loc.getBlockZ() + "]";
     }
 
-    /**
-     * Validates a team name for safe storage and gameplay.
-     */
     private boolean isValidTeamName(String name) {
         if (name == null) return false;
         name = name.trim();
         if (!TEAM_NAME_PATTERN.matcher(name).matches()) return false;
 
-        // Extra safety: disallow names that could still cause weird keys
-        // (redundant due to regex, but future-proof if regex changes)
         return !name.contains(".") && !name.contains("/") && !name.contains("\\") && !name.contains(":");
     }
 
@@ -120,11 +120,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.DARK_GRAY + "Example: " + ChatColor.GRAY + "My_Team1");
     }
 
-    /**
-     * Your Team class does not have an "active" boolean, so we treat "not active" as:
-     * - lives <= 0 OR
-     * - upkeepStatus == UNSTABLE/UNPROTECTED
-     */
     private boolean isTeamInactive(Team t) {
         if (t == null) return true;
         if (t.getLives() <= 0) return true;
@@ -135,7 +130,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     // =====================
     // /team list
-    // /team list <name>  -> Public info (EXCEPT banner location)
     // =====================
 
     private void handleList(Player player, String[] args) {
@@ -170,8 +164,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
 
     // =====================
     // /team info
-    // /team info <name> -> Public info (EXCEPT banner location)
-    // + if inactive, show "Beacon Location"
     // =====================
 
     private void handleInfo(Player player, String[] args) {
@@ -268,7 +260,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     // Core team commands
     // =====================
 
-    // /team create <name>
     private void handleCreate(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(ChatColor.RED + "Usage: /team create <name>");
@@ -296,7 +287,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "Use /team banner claim while holding your banner design.");
     }
 
-    // /team leave
     private void handleLeave(Player player) {
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
@@ -313,7 +303,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.YELLOW + "You have left the team '" + team.getName() + "'.");
     }
 
-    // /team disband
     private void handleDisband(Player player) {
         Team team = teamManager.getTeamByPlayer(player);
         if (team == null) {
@@ -331,7 +320,6 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(ChatColor.RED + "You have disbanded the team '" + name + "'.");
     }
 
-    // /team transfer <player>
     private void handleTransfer(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(ChatColor.RED + "Usage: /team transfer <player>");
@@ -372,6 +360,86 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
         target.sendMessage(ChatColor.GREEN + "You are now the owner of team "
                 + ChatColor.AQUA + team.getName() + ChatColor.GREEN + ".");
     }
+
+    // ✅ NEW: /team kick <player>
+    // =====================
+// /team kick <player>
+// Owner-only
+// =====================
+    private void handleKick(Player leader, String[] args) {
+        if (args.length < 2) {
+            leader.sendMessage(ChatColor.RED + "Usage: /team kick <player>");
+            return;
+        }
+
+        Team team = teamManager.getTeamByPlayer(leader);
+        if (team == null) {
+            leader.sendMessage(ChatColor.RED + "You are not in a team.");
+            return;
+        }
+
+        if (!team.getOwner().equals(leader.getUniqueId())) {
+            leader.sendMessage(ChatColor.RED + "Only the team owner can kick members.");
+            return;
+        }
+
+        String targetName = args[1];
+
+        // Try online first
+        UUID targetId = null;
+        Player onlineTarget = Bukkit.getPlayerExact(targetName);
+        if (onlineTarget != null) {
+            targetId = onlineTarget.getUniqueId();
+        } else {
+            // Offline lookup (safe guard so random names don't create fake players)
+            OfflinePlayer off = Bukkit.getOfflinePlayer(targetName);
+            if (!off.hasPlayedBefore()) {
+                leader.sendMessage(ChatColor.RED + "Player not found: " + targetName);
+                return;
+            }
+            targetId = off.getUniqueId();
+        }
+
+        TeamManager.KickResult result = teamManager.kickPlayerFromTeam(leader, targetId);
+
+        switch (result) {
+            case SUCCESS -> {
+                String kickedName = (onlineTarget != null)
+                        ? onlineTarget.getName()
+                        : Bukkit.getOfflinePlayer(targetId).getName();
+
+                if (kickedName == null) kickedName = targetName;
+
+                leader.sendMessage(ChatColor.GREEN + "You kicked " + ChatColor.YELLOW + kickedName
+                        + ChatColor.GREEN + " from team " + ChatColor.AQUA + team.getName() + ChatColor.GREEN + ".");
+
+                // Notify the kicked player if online
+                Player kickedOnline = Bukkit.getPlayer(targetId);
+                if (kickedOnline != null && kickedOnline.isOnline()) {
+                    kickedOnline.sendMessage(ChatColor.RED + "You were kicked from team "
+                            + ChatColor.AQUA + team.getName()
+                            + ChatColor.RED + " by " + ChatColor.YELLOW + leader.getName() + ChatColor.RED + ".");
+                }
+
+                // Notify remaining members
+                for (UUID uuid : team.getMembers()) {
+                    Player member = Bukkit.getPlayer(uuid);
+                    if (member != null && member.isOnline()) {
+                        member.sendMessage(ChatColor.YELLOW + kickedName + ChatColor.RED + " was kicked by "
+                                + ChatColor.YELLOW + leader.getName() + ChatColor.RED + ".");
+                    }
+                }
+            }
+
+            case NOT_IN_TEAM -> leader.sendMessage(ChatColor.RED + "You are not in a team.");
+            case NOT_LEADER -> leader.sendMessage(ChatColor.RED + "Only the team owner can kick members.");
+            case TARGET_NOT_IN_TEAM -> leader.sendMessage(ChatColor.RED + "That player is not in your team.");
+            case CANNOT_KICK_SELF -> leader.sendMessage(ChatColor.RED + "You cannot kick yourself.");
+            case CANNOT_KICK_LEADER -> leader.sendMessage(ChatColor.RED + "You cannot kick the team owner.");
+            default -> leader.sendMessage(ChatColor.RED + "Could not kick that player.");
+        }
+    }
+
 
     // =====================
     // Banner subsection
@@ -652,10 +720,10 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
 
         List<String> completions = new ArrayList<>();
-        if (!(sender instanceof Player)) return completions;
+        if (!(sender instanceof Player player)) return completions;
 
         if (args.length == 1) {
-            List<String> subs = List.of("create", "list", "info", "leave", "disband", "transfer", "banner", "border", "invite", "accept");
+            List<String> subs = List.of("create", "list", "info", "leave", "disband", "transfer", "kick", "banner", "border", "invite", "accept");
             String current = args[0].toLowerCase(Locale.ROOT);
             for (String s : subs) {
                 if (s.startsWith(current)) {
@@ -713,6 +781,32 @@ public class TeamCommand implements CommandExecutor, TabCompleter {
                     completions.add(p.getName());
                 }
             }
+            return completions;
+        }
+
+        // ✅ tab-complete teammates for /team kick <name>
+        if (args.length == 2 && args[0].equalsIgnoreCase("kick")) {
+            Team team = teamManager.getTeamByPlayer(player);
+            if (team == null) return completions;
+
+            String partial = args[1].toLowerCase(Locale.ROOT);
+
+            for (UUID id : team.getMembers()) {
+                if (id.equals(player.getUniqueId())) continue;
+                String n = Bukkit.getOfflinePlayer(id).getName();
+                if (n != null && n.toLowerCase(Locale.ROOT).startsWith(partial)) {
+                    completions.add(n);
+                }
+            }
+
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                String n = p.getName();
+                if (n.toLowerCase(Locale.ROOT).startsWith(partial) && !completions.contains(n)) {
+                    completions.add(n);
+                }
+            }
+
+            completions.sort(String.CASE_INSENSITIVE_ORDER);
             return completions;
         }
 

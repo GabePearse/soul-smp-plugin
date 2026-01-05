@@ -1,9 +1,8 @@
-# koth.yml
 settings:
-  spawn-radius: 25
-  hill-radius: 2
-  win-seconds: 300
-  contested-requires-unique-teams: 2
+  spawn-inner-radius: 50
+  spawn-outer-radius: 65
+  hill-radius: 4
+  win-seconds: 60
 
 kit:
   clear-inventory: true
@@ -15,21 +14,57 @@ kit:
     boots: IRON_BOOTS
 
   items:
+    # Sword: KB 2
     - material: IRON_SWORD
       amount: 1
       enchants:
-        SHARPNESS: 1
+        KNOCKBACK: 2
+        UNBREAKING: 2
+
+    # Bow: Punch 2
     - material: BOW
       amount: 1
       enchants:
+        PUNCH: 2
         POWER: 1
-    - material: ARROW
+        UNBREAKING: 2
+
+    # Glowing arrows (best attempt with your current parser):
+    # If your server supports spectral arrows, this will work.
+    - material: SPECTRAL_ARROW
       amount: 32
+
+    # Pickaxe: insta-mine cobble (Efficiency 5 is the usual “insta” feel)
+    - material: DIAMOND_PICKAXE
+      amount: 1
+      enchants:
+        EFFICIENCY: 5
+        UNBREAKING: 3
+
+    - material: SHIELD
+      amount: 1
+      enchants:
+        UNBREAKING: 2
+
     - material: COOKED_BEEF
       amount: 16
 
-  # Optional: effects applied on respawn (seconds, amplifier)
+    - material: GOLDEN_APPLE
+      amount: 2
+
+    - material: COBBLESTONE
+      amount: 64
+
+    - material: WATER_BUCKET
+      amount: 1
+
+    - material: LAVA_BUCKET
+      amount: 1
+
   effects:
     - type: SPEED
-      seconds: 5
+      seconds: 30
       amplifier: 0
+    - type: HASTE
+      seconds: 600
+      amplifier: 3
