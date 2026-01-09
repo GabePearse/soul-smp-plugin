@@ -22,20 +22,26 @@ public class LevelRewardListener implements Listener {
         Player player = event.getPlayer();
         if (player == null) return;
 
-        int oldLevel = event.getOldLevel();
         int newLevel = event.getNewLevel();
 
-        // Only reward on level increases
-        if (newLevel <= oldLevel) return;
+        // Only reward on actual increases
+        if (newLevel <= event.getOldLevel()) return;
 
         // Rewards start at level 30
         if (newLevel < 30) return;
+
+        // Use persisted progress as source of truth (not Bukkit's old level)
+        int lastRewarded = progress.getLastRewardedLevel(player.getUniqueId());
+        if (newLevel <= lastRewarded) return;
 
         // Calculate + mark (only marks if tokens > 0)
         int totalTokens = progress.payAndMarkLevels(player.getUniqueId(), newLevel);
         if (totalTokens <= 0) return;
 
-        tokens.giveTokens(player, totalTokens);
+        // Save the "paid up to" level first (prevents double pay on crashes/reloads)
         progress.save();
+
+        // Then pay out
+        tokens.giveTokens(player, totalTokens);
     }
 }

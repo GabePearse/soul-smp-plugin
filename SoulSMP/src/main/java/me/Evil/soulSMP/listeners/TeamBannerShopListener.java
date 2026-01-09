@@ -1,6 +1,6 @@
 package me.Evil.soulSMP.listeners;
 
-import me.Evil.soulSMP.shop.*;
+import me.Evil.soulSMP.bannershop.*;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.team.TeamManager;

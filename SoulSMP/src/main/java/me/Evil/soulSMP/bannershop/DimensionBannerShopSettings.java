@@ -1,4 +1,4 @@
-package me.Evil.soulSMP.shop;
+package me.Evil.soulSMP.bannershop;
 
 import me.Evil.soulSMP.SoulSMP;
 import org.bukkit.ChatColor;

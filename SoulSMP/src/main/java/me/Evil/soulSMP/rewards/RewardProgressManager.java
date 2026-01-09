@@ -136,12 +136,24 @@ public class RewardProgressManager {
     }
 
     /**
+     * Tokens per level scales by bracket:
+     * 0-99   -> 1 token/level
+     * 100-199 -> 2 tokens/level
+     * 200-299 -> 3 tokens/level
+     * etc...
+     */
+    private int tokensForLevel(int level) {
+        if (level < 0) level = 0;
+        return (level / 100) + 1;
+    }
+
+    /**
      * Calculates how many tokens to award for level-ups:
      * - Only levels >= 30 reward tokens
      * - Each level rewards ONLY ONCE (tracked by lastRewardedLevel)
-     * - Tokens per level = 1
+     * - Tokens per level scales by bracket (see tokensForLevel)
      *
-     * Supports skipping levels (ex: 29 -> 33 will reward 30..33 = 4 tokens).
+     * Supports skipping levels (ex: 29 -> 33 will reward 30..33).
      *
      * IMPORTANT:
      * - This method does not mutate state.
@@ -159,10 +171,12 @@ public class RewardProgressManager {
         int start = Math.max(30, last + 1);
         if (newLevel < start) return 0;
 
-        // 1 token per newly reached level (>=30)
-        return (newLevel - start) + 1;
+        int total = 0;
+        for (int lvl = start; lvl <= newLevel; lvl++) {
+            total += tokensForLevel(lvl);
+        }
+        return total;
     }
-
 
     /**
      * Convenience helper:

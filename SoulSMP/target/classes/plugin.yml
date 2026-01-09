@@ -1,6 +1,6 @@
 name: SoulSMP
 main: me.Evil.soulSMP.SoulSMP
-version: 2.0.1
+version: 2.1.0
 api-version: 1.20
 author: Evil
 description: Team-based SMP with banner claims.
@@ -60,6 +60,9 @@ commands:
   opmode:
     description: Toggle creative op mode with inventory/xp/location snapshot.
     usage: /opmode
+  reboot:
+    description: Reboot the server with a countdown
+    permission: soulsmp.reboot
 
 permissions:
   soulsmp.opmode:

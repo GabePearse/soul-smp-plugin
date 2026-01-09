@@ -1,4 +1,4 @@
-package me.Evil.soulSMP.shop;
+package me.Evil.soulSMP.bannershop;
 
 import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
@@ -144,8 +144,10 @@ public class TeamBannerShopGui {
 
             case LIVES -> {
                 int lives = team.getLives();
-                // lives are flat cost here; multiplier can still be used if you want scaling
-                int cost = item.getScaledCost(0);
+
+                // IMPORTANT: lives cost scales using lifetime purchases, not current lives.
+                int stepIndex = Math.max(0, team.getLivesPurchased());
+                int cost = item.getScaledCost(stepIndex);
 
                 line = line
                         .replace("{current_lives}", String.valueOf(lives))

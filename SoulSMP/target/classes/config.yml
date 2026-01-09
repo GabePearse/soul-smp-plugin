@@ -62,12 +62,48 @@ teams:
 
 tips:
   enabled: true
-  interval-seconds: 600   # every 5 minutes (min 30)
+  interval-seconds: 300   # every 5 minutes (min 30)
   random-order: false
 
   messages:
     - "&8[&bSoulSMP&8] &7Stuck somewhere? Use &b/stuck &7(Confirm by typing it again)."
     - "&8[&bSoulSMP&8] &7New here? Check the &bSpawn Tutorial &7to learn banners, claims, and upgrades."
-    - "&8[&bSoulSMP&8] &7Join the Discord: &bdiscord.gg/ySHMPBytuK"
+    - "&8[&bSoulSMP&8] &7Join the Discord: &bdiscord.gg/RWWedmPjCn"
     - "&8[&bSoulSMP&8] &7Find the &bShop &7and &bBank &7at spawn! (Look for the NPCs)"
-    - "&8[&bSoulSMP&8] &7Remember to pay your upkeep at your banner!"
+
+soul-anvil:
+  enabled: true
+  title: "&8Soul Forge"
+
+  filler:
+    material: BLACK_STAINED_GLASS_PANE
+    name: "&8 "
+
+  # Hard cap for safety (UI / lore only, real cost still enforced)
+  max-display-cost: 1000000
+
+  # Enchant cost scaling
+  # stepCost(level) = weight * base-step-cost * (exp-base ^ (level - 1))
+  exp-base: 1.325
+  base-step-cost: 4
+
+  # Repair cost (item + item)
+  repair-base-cost: 2
+  repair-percent-multiplier: 10.0
+
+  # Rename behavior
+  rename:
+    allow-colors: true
+    require-permission: false
+
+  # Enchant weight tuning
+  weights:
+    treasure: 1
+    cursed: 1
+    protection: 1
+    sharpness_power: 1
+    efficiency: 1
+    unbreaking: 1
+    fortune_looting: 3
+    silk_touch: 1
+    default: 1

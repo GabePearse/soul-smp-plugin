@@ -1,9 +1,8 @@
-package me.Evil.soulSMP.shop;
+package me.Evil.soulSMP.bannershop;
 
 import org.bukkit.Material;
 
 import java.util.List;
-import java.util.Locale;
 
 
 public class BannerShopItem {

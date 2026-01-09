@@ -1,6 +1,6 @@
-package me.Evil.soulSMP.shop;
+package me.Evil.soulSMP.bannershop;
 
-import me.Evil.soulSMP.shop.BannerShopItem.ShopItemType;
+import me.Evil.soulSMP.bannershop.BannerShopItem.ShopItemType;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;

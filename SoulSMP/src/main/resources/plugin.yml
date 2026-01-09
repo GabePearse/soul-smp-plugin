@@ -60,6 +60,9 @@ commands:
   opmode:
     description: Toggle creative op mode with inventory/xp/location snapshot.
     usage: /opmode
+  reboot:
+    description: Reboot the server with a countdown
+    permission: soulsmp.reboot
 
 permissions:
   soulsmp.opmode:

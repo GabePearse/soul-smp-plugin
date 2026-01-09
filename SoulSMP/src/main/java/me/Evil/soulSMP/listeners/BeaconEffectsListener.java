@@ -4,8 +4,8 @@ import me.Evil.soulSMP.team.Team;
 import me.Evil.soulSMP.tokens.SoulTokenManager;
 import me.Evil.soulSMP.beacon.*;
 import me.Evil.soulSMP.team.TeamManager;
-import me.Evil.soulSMP.shop.BannerShopSettings;
-import me.Evil.soulSMP.shop.TeamBannerShopGui;
+import me.Evil.soulSMP.bannershop.BannerShopSettings;
+import me.Evil.soulSMP.bannershop.TeamBannerShopGui;
 import me.Evil.soulSMP.upkeep.TeamUpkeepManager;
 import me.Evil.soulSMP.upkeep.UpkeepStatus;
 

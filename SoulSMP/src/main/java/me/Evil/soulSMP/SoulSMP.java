@@ -17,8 +17,8 @@ import me.Evil.soulSMP.listeners.*;
 import me.Evil.soulSMP.npc.MannequinNpcListener;
 import me.Evil.soulSMP.npc.MannequinNpcManager;
 import me.Evil.soulSMP.rewards.RewardProgressManager;
-import me.Evil.soulSMP.shop.BannerShopSettings;
-import me.Evil.soulSMP.shop.DimensionBannerShopSettings;
+import me.Evil.soulSMP.bannershop.BannerShopSettings;
+import me.Evil.soulSMP.bannershop.DimensionBannerShopSettings;
 import me.Evil.soulSMP.store.StoreManager;
 import me.Evil.soulSMP.store.sell.SellEngine;
 import me.Evil.soulSMP.store.util.FishSimCommand;
@@ -95,8 +95,6 @@ public class SoulSMP extends JavaPlugin {
     // OP MODE
     private OpModeManager opModeManager;
 
-
-
     public MannequinNpcManager getNpcManager() {
         return npcManager;
     }
@@ -116,7 +114,6 @@ public class SoulSMP extends JavaPlugin {
 
         // OP MODE
         opModeManager = new OpModeManager(this);
-
 
         // VOUCHER MAIL MANAGER
         voucherMail = new VoucherMailManager(this);
@@ -144,8 +141,6 @@ public class SoulSMP extends JavaPlugin {
 
         // NPC MANAGER
         npcManager = new MannequinNpcManager(this);
-
-
 
         // FISH NBT KEYS
         fishTypeKey   = new NamespacedKey(this, "fish_type");
@@ -264,7 +259,6 @@ public class SoulSMP extends JavaPlugin {
         // Reload Op
         if (opModeManager != null) opModeManager.load();
 
-
         // Reset event registrations
         org.bukkit.event.HandlerList.unregisterAll(this);
 
@@ -359,6 +353,9 @@ public class SoulSMP extends JavaPlugin {
             getCommand("opmode").setExecutor(new OpModeCommand(opModeManager));
         }
 
+        if (getCommand("reboot") != null) {
+            getCommand("reboot").setExecutor(new RebootCommand(this));
+        }
     }
 
     private void registerListeners(SellEngine sellEngine) {
@@ -385,8 +382,8 @@ public class SoulSMP extends JavaPlugin {
         Bukkit.getPluginManager().registerEvents(new KothListener(this, kothManager), this);
         Bukkit.getPluginManager().registerEvents(new VoucherListener(this, teamManager, upkeepManager), this);
         Bukkit.getPluginManager().registerEvents(new VoucherDeliveryListener(voucherMail), this);
-        getServer().getPluginManager().registerEvents(new AnvilBeyondVanillaListener(), this);
-        getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new SoulAnvilListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new SpawnListener(this), this);
     }
 
     private void restartTasks() {
